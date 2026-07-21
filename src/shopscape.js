@@ -1,15 +1,16 @@
 "use strict";
 // ============================================================ CONSTANTS
 const TILE=40, MAP_W=48, MAP_H=38;
-const T={GRASS:0,GRASS2:1,DIRT:2,WATER:3,SAND:4,COBBLE:5,BRIDGE:6,FLOOR:7};
-const BLOCK_TERRAIN=new Set([T.WATER]);
+const T={GRASS:0,GRASS2:1,DIRT:2,WATER:3,SAND:4,COBBLE:5,BRIDGE:6,FLOOR:7,SWAMP:8};
+const BLOCK_TERRAIN=new Set([T.WATER,T.SWAMP]);
 // ground base colors (organic noise applied on top)
 const GC={
   [T.GRASS]:[54,84,42],[T.GRASS2]:[46,74,36],[T.DIRT]:[104,84,56],[T.WATER]:[38,92,120],
   [T.SAND]:[150,134,92],[T.COBBLE]:[120,116,120],[T.BRIDGE]:[110,78,46],[T.FLOOR]:[130,120,98],
+  [T.SWAMP]:[40,92,78],
 };
 const MINI={[T.GRASS]:"#3a5a2a",[T.GRASS2]:"#32502a",[T.DIRT]:"#6b563b",[T.WATER]:"#2f6b8f",
-  [T.SAND]:"#b0a06a",[T.COBBLE]:"#7a7a80",[T.BRIDGE]:"#6b4a2f",[T.FLOOR]:"#8a8078"};
+  [T.SAND]:"#b0a06a",[T.COBBLE]:"#7a7a80",[T.BRIDGE]:"#6b4a2f",[T.FLOOR]:"#8a8078",[T.SWAMP]:"#2f6b5a"};
 // ---- seeded PRNG + value noise ----
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function makeNoise(seed,g=48){const r=mulberry32(seed);const grid=new Float32Array(g*g);for(let i=0;i<grid.length;i++)grid[i]=r();
@@ -86,6 +87,10 @@ function genWorld(){
     if(forest(x/2+7,y/2+7)>0.8)put("deadtree",x,y,true);}
   // decorations: lamps by town, signs
   put("lamp",7,7,true);put("lamp",12,7,true);put("sign",8,14,false);
+  // cursed swamp pond (greenish-blue) — south of town, guarded by the RevOps Oracle
+  for(const c of [[3,15],[4,15],[5,15],[3,16],[4,16],[5,16],[6,16],[4,17],[5,17]])if(inb(c[0],c[1]))map[c[1]][c[0]]=T.SWAMP;
+  // a clean fishing pond near town
+  for(const c of [[16,15],[17,15],[18,15],[16,16],[17,16],[18,16],[17,17]])if(inb(c[0],c[1])&&map[c[1]][c[0]]!==T.DIRT)map[c[1]][c[0]]=T.WATER;
 }
 genWorld();
 function walkable(tx,ty){return inb(tx,ty)&&!BLOCK_TERRAIN.has(map[ty][tx])&&!blockObj[ty][tx];}
@@ -187,6 +192,7 @@ const SKILL_DEFS=[
   {key:"selling",name:"Checkout Combat",glyph:"⚔",train:true},
   {key:"sourcing",name:"Sourcing",glyph:"🪓",train:true},
   {key:"mining",name:"Data Mining",glyph:"⛏",train:true},
+  {key:"fishing",name:"Fishing",glyph:"🎣",train:true},
   {key:"liquid",name:"Liquid (Magic)",glyph:"💧"},
   {key:"api",name:"API · GraphQL/REST",glyph:"🏹"},
   {key:"trust",name:"Trust Battery",glyph:"🔋"},
@@ -254,6 +260,12 @@ const ITEM_DEFS={
   portalStone:{name:"Spin-Up Portal Stone",glyph:"🌀",buy:40,teleport:true,desc:"Conjures a fresh dev environment — instantly fast-travels you back to town."},
   sidekick:{name:"Sidekick Lamp",glyph:"🪔",buy:250,companion:true,desc:"Rub to summon your AI familiar, who fights beside you for a while."},
   editions:{name:"Editions Booklet",glyph:"📘",sell:100,desc:"Drops every Summer & Winter — a catalog of 100+ new abilities (lore item)."},
+  // ---- fishing / cooking ----
+  fishingRod:{name:"Fishing Rod",glyph:"🎣",tool:"fish",sell:0,desc:"A merchant's rod from Harley the Hype. Click a body of water to cast and catch fish."},
+  rawFish:{name:"Raw Fish",glyph:"🐟",raw:true,sell:4,desc:"A fresh catch. Select it, then click a campfire to cook it."},
+  cookedFish:{name:"Cooked Fish",glyph:"🍤",heal:12,sell:9,desc:"Grilled on a Merchant Fire. Restores 12 Health Score when eaten."},
+  badData:{name:"Bad Data",glyph:"🐡",cursed:true,sell:0,desc:"Ungoverned raw-table data dredged from the cursed swamp. Do NOT try to cook or eat this."},
+  merchantFire:{name:"Merchant Fire",glyph:"🔥",fire:true,desc:"A spark of merchant passion from your CSM. Use it with Product Logs to build a campfire."},
 };
 // playable characters — appearance handled in drawCharacter(), attack style in drawCharacter()/combat
 const CHARS={
@@ -288,27 +300,30 @@ let monsters=fix([
   home:{x:m.tx,y:m.ty},path:[],aggro:false,wanderCd:rr(500,3000),aiCd:0,atkAnim:0,atkCd:0,face:1,
   hp:MT[m.type].hp,maxHp:MT[m.type].hp,dead:false,respawnAt:0,flash:0}));
 const NPCS=fix([
-  {tx:11,ty:9,name:"Harley the Hype",glyph:"🧙",lines:[
-    "Welcome to 151 O'Connor Keep, merchant! Every empire starts with a single sale.",
-    "Chop Product Crates & fell trees to train Sourcing 🪓. Mine ore in the Data Warehouse to train Data Mining ⛏.",
-    "Slay the beasts of commerce to train Checkout Combat ⚔. The Churn Dragon haunts the Fulfillment Fortress.",
-    "And beyond it lurks the Emperor of the Everything Store himself. Arm the rebels before you face him."]},
-  {tx:5,ty:6,name:"Banker",glyph:"🧑‍💼",lines:["The Merchant Bank keeps your GMV and goods safe.","Your realm auto-saves to this browser."]},
-  {tx:13,ty:6,name:"The MSM",glyph:"🩺",heal:true,lines:[
-    "Your Merchant Success Manager, at your service.",
-    "Let me restore your Health Score — that is your whole HP bar, after all."]},
-  {tx:4,ty:11,name:"The Partner",glyph:"🧑‍🏭",lines:[
+  {tx:11,ty:9,name:"Harley the Hype",sprite:"harley",grant:"fishingRod",lines:[
+    "YO! Welcome to 151 O'Connor Keep! Every empire starts with a single sale — LET'S GOOO!",
+    "Chop crates & fell trees for Sourcing, mine ore for Data Mining, and batter the beasts of commerce for Checkout Combat.",
+    "Here — take this Fishing Rod. Cast it into any body of water to fish, then cook your catch on a campfire!",
+    "Now go arm the rebels, champion. The Empire won't know what hit 'em."]},
+  {tx:5,ty:6,name:"Banker",sprite:"banker",lines:["The Merchant Bank keeps your GMV and goods safe.","Your realm auto-saves to this browser, friend."]},
+  {tx:13,ty:6,name:"The CSM",sprite:"csm",heal:true,give:"merchantFire",lines:[
+    "Your Customer Success Manager, here to keep your Health Score high.",
+    "Take a Merchant Fire — combine it with Product Logs to build a campfire and cook your catch.",
+    "Come back any time you need a heal or another spark."]},
+  {tx:4,ty:11,name:"The Partner",sprite:"partner",lines:[
     "I'm an agency crafter — I forge apps and themes into gear.",
     "Bring GMV to the General Store and I'll keep the forge stocked for you."]},
-  {tx:2,ty:17,name:"Tobi the Founder",glyph:"⌨️",grant:"foundersRustBlade",lines:[
+  {tx:2,ty:17,name:"Tobi the Founder",sprite:"tobi",grant:"foundersRustBlade",lines:[
     "Oh — didn't see you there. Just building mechanical keyboards between StarCraft matches.",
     "You look like you can hold your own. Here — I forged this in Rust. Memory-safe. Never segfaults.",
     "Go arm the rebels. Every merchant deserves a fighting chance against the Empire."]},
-]);
+  {tx:8,ty:16,name:"The RevOps Oracle",sprite:"oracle",lines:[
+    "The sacred mart says: use governed data, brave ranger. The raw-table swamp is cursed."]},
+]).map(n=>({...n,px:n.tx*TILE+TILE/2,py:n.ty*TILE+TILE/2,home:{x:n.tx,y:n.ty},path:[],wanderCd:rr(800,3500),face:1}));
 const DEFAULT=(charKey)=>{const c=CHARS[charKey]||CHARS.shoppy;const inv={};inv[c.weapon]=1;inv[c.shield]=1;if(c.body)inv[c.body]=1;inv.elixir=3;inv.portalStone=1;
   return{player:{px:8*TILE+20,py:8*TILE+20,hp:30,maxHp:30,path:[],anim:0,face:1,atkAnim:0,
     char:charKey||"shoppy",weapon:c.weapon,shield:c.shield,head:null,body:c.body||null,legs:null,hands:null},
-    skills:{selling:{xp:0},sourcing:{xp:0},mining:{xp:0}},inv,gmv:0,bank:{},granted:{},quests:{},buffs:{},reveal:false};};
+    skills:{selling:{xp:0},sourcing:{xp:0},mining:{xp:0},fishing:{xp:0}},inv,gmv:0,bank:{},granted:{},quests:{},buffs:{},reveal:false};};
 let dialogIdx={};
 let state=load(); // null => show character-select on boot
 let pending=null; // {kind:'monster'|'crate'|'npc'|'building', ref}
@@ -345,7 +360,13 @@ function gainXp(sk,amt){if(!state.skills[sk])state.skills[sk]={xp:0};const b=lev
 function addItem(k,q){state.inv[k]=(state.inv[k]||0)+q;}
 
 // ============================================================ FX
-let hitsplats=[],xpdrops=[],marker=null,lastAction=0;
+let hitsplats=[],xpdrops=[],marker=null,lastAction=0,selectedItem=null;
+function applyCurse(){state.player.curseUntil=Date.now()+300000;selectedItem=null;
+  log("Your SDP access has been revoked since you're in the Commercial org. As a result, you've lost visibility for the next 5 minutes.","bad");}
+function buildCampfire(){const p=state.player;const pt=pxTile(p.px,p.py);let tx=pt.x+(p.face||1),ty=pt.y;
+  if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y+1;}
+  if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y;}
+  objects.push({type:"campfire",tx,ty,burnUntil:Date.now()+120000});}
 function hitsplat(x,y,val,color){hitsplats.push({x,y,val,color,life:34});}
 
 // ============================================================ INPUT (click-to-walk, RS style)
@@ -371,10 +392,15 @@ canvas.addEventListener("click",e=>{
   if(tr){setPending("tree",tr);marker={x:wx,y:wy,life:30,kind:"red"};return;}
   const rk=objects.find(o=>o.type==="rock"&&o.tx===tx&&o.ty===ty);
   if(rk){setPending("rock",rk);marker={x:wx,y:wy,life:30,kind:"red"};return;}
+  const cf=objects.find(o=>o.type==="campfire"&&o.tx===tx&&o.ty===ty);
+  if(cf){setPending("campfire",cf);marker={x:wx,y:wy,life:30,kind:"red"};return;}
   const np=NPCS.find(n=>n.tx===tx&&n.ty===ty);
   if(np){setPending("npc",np);marker={x:wx,y:wy,life:30,kind:"red"};return;}
   const b=objects.find(o=>(o.type==="bank"||o.type==="store")&&tx>=o.tx&&tx<o.tx+o.w&&ty>=o.ty&&ty<o.ty+o.h);
   if(b){setPending("building",{tx:b.door.x,ty:b.door.y,bkind:b.type});marker={x:(b.door.x+0.5)*TILE,y:(b.door.y+0.5)*TILE,life:30,kind:"red"};return;}
+  if(inb(tx,ty)&&(map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP)){
+    if((state.inv.fishingRod||0)>0){setPending("fish",{tx,ty,swamp:map[ty][tx]===T.SWAMP});marker={x:wx,y:wy,life:30,kind:"red"};}
+    else{log("You need a Fishing Rod to fish here — speak to <b>Harley the Hype</b>.","");}return;}
   pending=null;goTo(tx,ty);marker={x:wx,y:wy,life:30,kind:"yellow"};
 });
 
@@ -387,9 +413,10 @@ function movement(dt){const p=state.player;if(!p.path||!p.path.length){p.moving=
   p.anim+=dt/90;}
 function talk(n){const i=(dialogIdx[n.name]||0)%n.lines.length;log(`<b>${n.name}:</b> ${n.lines[i]}`,"sys");dialogIdx[n.name]=i+1;
   const p=state.player;
-  if(n.heal&&p.hp<p.maxHp){p.hp=p.maxHp;hitsplat(p.px,p.py-4,"heal","#4fae5a");log("The MSM restores your Health Score to full.","good");}
+  if(n.heal&&p.hp<p.maxHp){p.hp=p.maxHp;hitsplat(p.px,p.py-4,"heal","#4fae5a");log("The CSM restores your Health Score to full.","good");}
   if(n.grant){state.granted=state.granted||{};if(!state.granted[n.grant]){state.granted[n.grant]=1;addItem(n.grant,1);
-    log(`Tobi hands you the <b>${ITEM_DEFS[n.grant].name}</b>! Equip it from your inventory.`,"gold");}}}
+    log(`You receive the <b>${ITEM_DEFS[n.grant].name}</b>! ${ITEM_DEFS[n.grant].kind?"Equip it":"Use it"} from your inventory.`,"gold");}}
+  if(n.give&&(state.inv[n.give]||0)<1){addItem(n.give,1);log(`The CSM hands you a <b>${ITEM_DEFS[n.give].name}</b>.`,"good");}}
 function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
   if(pending.kind==="monster"&&ref.dead){pending=null;return;}
   if(p.path&&p.path.length)return;
@@ -409,6 +436,17 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
   if(pending.kind==="rock"){const o=ref;if(o.cd>0){pending=null;return;}if(now-lastAction<750)return;lastAction=now;
     p.atkAnim=ATK_FRAMES;gainXp("mining",12);addItem("ore",1);o.cd=4000;
     log("You mine some GMV Ore from the outcrop.","good");questProgress("mine");pending=null;return;}
+  if(pending.kind==="fish"){const o=ref;if((state.inv.fishingRod||0)<1){log("You need a Fishing Rod. Speak to Harley the Hype.","");pending=null;return;}
+    if(now-lastAction<1200)return;lastAction=now;p.atkAnim=ATK_FRAMES;gainXp("fishing",13);
+    if(o.swamp){addItem("badData",1);log("You haul <b>Bad Data</b> out of the cursed swamp.","bad");
+      log("SDP Access has been revoked for the Commercial org — it'd be a shame for you to try to cook with this.","bad");}
+    else{addItem("rawFish",1);log("You reel in a <b>Raw Fish</b>!","good");}
+    pending=null;return;}
+  if(pending.kind==="campfire"){
+    if(selectedItem==="rawFish"&&(state.inv.rawFish||0)>0){state.inv.rawFish--;addItem("cookedFish",1);gainXp("fishing",8);
+      log("You grill the fish over the Merchant Fire — a hot <b>Cooked Fish</b>!","good");selectedItem=null;pending=null;return;}
+    if(selectedItem==="badData"){applyCurse();selectedItem=null;pending=null;return;}
+    log("Select a <b>Raw Fish</b> in your inventory, then click the campfire to cook it.","");pending=null;return;}
   if(pending.kind==="monster"){const m=ref,d=MT[m.type];const w=ITEM_DEFS[state.player.weapon]||{};const spd=w.spd||640;
     if(now-lastAction<spd)return;lastAction=now;p.atkAnim=ATK_FRAMES;
     const lvl=levelForXp(state.skills.selling.xp);let dmg=1+Math.floor(Math.random()*(2+Math.floor(lvl*0.6)+(w.atk||0)));
@@ -455,11 +493,18 @@ function monsterAI(m,dt){const d=MT[m.type];const p=state.player;
     else{m.wanderCd-=dt;if(m.wanderCd<=0){m.wanderCd=rr(1600,4200);
       const a=nearestWalkable(m.home.x+((rr(0,6))|0)-3,m.home.y+((rr(0,6))|0)-3);
       if(a)m.path=findPath(m.tx,m.ty,a.x,a.y)||[];}}}}
+function npcTick(n,dt){if(pending&&pending.kind==="npc"&&pending.ref===n){n.path=[];return;}
+  if(n.path&&n.path.length){moveEntity(n,55,dt);return;}
+  n.wanderCd-=dt;if(n.wanderCd<=0){n.wanderCd=rr(2600,6200);
+    const a=nearestWalkable(n.home.x+((rr(0,5))|0)-2,n.home.y+((rr(0,5))|0)-2);
+    if(a)n.path=findPath(n.tx,n.ty,a.x,a.y)||[];}}
 function worldTick(dt){const now=Date.now();
   for(const c of crates)if(c.cd>0)c.cd-=dt;
   for(const o of objects)if(o.felled&&now>=o.respawnAt){const pt=pxTile(state.player.px,state.player.py);
     if(pt.x===o.tx&&pt.y===o.ty){o.respawnAt=now+1500;continue;}o.felled=false;o.hp=2;blockObj[o.ty][o.tx]=1;}
   for(const o of objects)if(o.type==="rock"&&o.cd>0)o.cd-=dt;
+  for(let i=objects.length-1;i>=0;i--)if(objects[i].type==="campfire"&&now>objects[i].burnUntil)objects.splice(i,1);
+  for(const n of NPCS)npcTick(n,dt);
   if(state.buffs){for(const k in state.buffs){if(state.buffs[k]>0){state.buffs[k]-=dt;if(state.buffs[k]<=0){delete state.buffs[k];log("A buff wears off.","");}}}}
   if(companion.active){companionTick(dt);}
   for(const m of monsters){
@@ -478,10 +523,12 @@ const SX=x=>x-cam.x, SY=y=>y-cam.y;
 function shadow(sx,sy,w){ctx.fillStyle="rgba(0,0,0,0.28)";ctx.beginPath();ctx.ellipse(sx,sy,w,w*0.42,0,0,7);ctx.fill();}
 function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function drawWater(){const t=Date.now()/600;const x0=Math.floor(cam.x/TILE),y0=Math.floor(cam.y/TILE);
-  for(let y=y0;y<y0+VH/TILE+2;y++)for(let x=x0;x<x0+VW/TILE+2;x++){if(!inb(x,y)||map[y][x]!==T.WATER)continue;
-    const sx=SX(x*TILE),sy=SY(y*TILE);ctx.fillStyle="rgba(150,200,225,"+(0.06+0.06*Math.sin(t+x*0.7+y*0.5))+")";ctx.fillRect(sx,sy,TILE,TILE);
-    ctx.strokeStyle="rgba(210,235,245,0.10)";ctx.lineWidth=1.5;ctx.beginPath();
-    const yy=sy+TILE/2+Math.sin(t+x)*5;ctx.moveTo(sx,yy);ctx.quadraticCurveTo(sx+TILE/2,yy+4,sx+TILE,yy);ctx.stroke();}}
+  for(let y=y0;y<y0+VH/TILE+2;y++)for(let x=x0;x<x0+VW/TILE+2;x++){if(!inb(x,y))continue;const tt=map[y][x];
+    if(tt!==T.WATER&&tt!==T.SWAMP)continue;const sw=tt===T.SWAMP;const sx=SX(x*TILE),sy=SY(y*TILE);
+    ctx.fillStyle=(sw?"rgba(120,200,150,":"rgba(150,200,225,")+(0.06+0.06*Math.sin(t+x*0.7+y*0.5))+")";ctx.fillRect(sx,sy,TILE,TILE);
+    ctx.strokeStyle=sw?"rgba(150,230,180,0.12)":"rgba(210,235,245,0.10)";ctx.lineWidth=1.5;ctx.beginPath();
+    const yy=sy+TILE/2+Math.sin(t+x)*5;ctx.moveTo(sx,yy);ctx.quadraticCurveTo(sx+TILE/2,yy+4,sx+TILE,yy);ctx.stroke();
+    if(sw&&(x+y+Math.floor(t*0.5))%5===0){ctx.fillStyle="rgba(180,255,200,0.28)";ctx.beginPath();ctx.arc(sx+TILE*0.5,sy+TILE*0.4+Math.sin(t*2+x)*4,2,0,7);ctx.fill();}}}
 function drawMarker(){if(!marker)return;const sx=SX(marker.x),sy=SY(marker.y);const a=marker.life/30;const s=6+(1-a)*6;
   ctx.strokeStyle=marker.kind==="red"?`rgba(220,60,50,${a})`:`rgba(240,220,60,${a})`;ctx.lineWidth=2.5;
   ctx.beginPath();ctx.moveTo(sx-s,sy-s);ctx.lineTo(sx+s,sy+s);ctx.moveTo(sx+s,sy-s);ctx.lineTo(sx-s,sy+s);ctx.stroke();}
@@ -643,13 +690,42 @@ function drawCompanion(){if(!companion.active)return;const sx=SX(companion.px),s
   shadow(sx,sy+8,7);const gr=ctx.createRadialGradient(sx,sy,0,sx,sy,9);gr.addColorStop(0,"#bfe0ff");gr.addColorStop(1,"rgba(110,168,255,0.1)");
   ctx.fillStyle=gr;ctx.beginPath();ctx.arc(sx,sy+Math.sin(t)*2,9,0,7);ctx.fill();
   ctx.fillStyle="#2a3a5a";ctx.beginPath();ctx.arc(sx-2,sy-1,1.4,0,7);ctx.arc(sx+2,sy-1,1.4,0,7);ctx.fill();}
-function drawNPC(n){const sx=SX(n.tx*TILE+TILE/2),sy=SY(n.ty*TILE+TILE/2);if(sx<-60||sx>VW+60)return;shadow(sx,sy+14,12);
-  ctx.save();ctx.translate(sx,sy);
-  ctx.fillStyle=n.name==="Banker"?"#2b4a7a":"#6a3fa0";roundRect(-8,-6,16,18,4);ctx.fill();
-  ctx.fillStyle="#e2b48c";ctx.beginPath();ctx.arc(0,-12,6,0,7);ctx.fill();
-  ctx.fillStyle="#ccc";ctx.beginPath();ctx.arc(0,-9,6,0.2,Math.PI-0.2);ctx.fill();ctx.restore();
+function drawNPC(n){const sx=SX(n.px),sy=SY(n.py);if(sx<-60||sx>VW+60||sy<-60||sy>VH+60)return;
+  const moving=n.path&&n.path.length;const now=Date.now();
+  const bob=moving?Math.abs(Math.sin(now/150+n.px))*2:Math.sin(now/520+n.px);
+  shadow(sx,sy+15,12);ctx.save();ctx.translate(sx,sy-bob);const f=n.face||1;
+  const head=(skin)=>{ctx.fillStyle=skin||"#e2b48c";ctx.beginPath();ctx.arc(0,-12,6,0,7);ctx.fill();};
+  const eye=()=>{ctx.fillStyle="#123";ctx.fillRect(f>0?1:-3,-13,2,2);};
+  if(n.sprite==="harley"){ctx.fillStyle="#e8732a";roundRect(-8,-6,16,17,4);ctx.fill();ctx.fillStyle="#f4b23a";ctx.fillRect(-8,-2,16,3);
+    head();ctx.fillStyle="#3a2a18";ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();
+    ctx.save();ctx.translate(f*9,-9);ctx.rotate(f*0.4);ctx.fillStyle="#c8342f";ctx.beginPath();ctx.moveTo(0,-3);ctx.lineTo(9,-6);ctx.lineTo(9,6);ctx.lineTo(0,3);ctx.closePath();ctx.fill();ctx.restore();eye();}
+  else if(n.sprite==="banker"){ctx.fillStyle="#23324a";roundRect(-8,-6,16,18,4);ctx.fill();
+    ctx.fillStyle="#e8e2d2";ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(-3,3);ctx.lineTo(3,3);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#7a1d1d";ctx.fillRect(-1,-5,2,8);head();ctx.fillStyle="#4a3421";ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();
+    ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(-9,5,3,0,7);ctx.fill();eye();}
+  else if(n.sprite==="csm"){ctx.fillStyle="#2f9e8f";roundRect(-8,-6,16,18,4);ctx.fill();
+    ctx.fillStyle="#eef6f2";ctx.fillRect(-2,-3,4,10);ctx.fillRect(-5,1,10,3);head();
+    ctx.strokeStyle="#1b1b1b";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,-13,7,Math.PI*1.05,Math.PI*1.95);ctx.stroke();
+    ctx.fillStyle="#1b1b1b";ctx.fillRect(-8,-13,2,4);ctx.fillStyle="#2f9e8f";ctx.fillRect(-9,-10,4,1.6);
+    ctx.fillStyle="#3a2a18";ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();eye();}
+  else if(n.sprite==="partner"){ctx.fillStyle="#6a5a3a";roundRect(-8,-6,16,18,4);ctx.fill();ctx.fillStyle="#8a7a4a";ctx.fillRect(-8,-2,16,3);
+    head();ctx.fillStyle="#e8c000";ctx.beginPath();ctx.arc(0,-14,7,Math.PI,0);ctx.fill();ctx.fillRect(-8,-15,16,2);
+    ctx.strokeStyle="#9aa0a6";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(f*7,-1);ctx.lineTo(f*11,5);ctx.stroke();eye();}
+  else if(n.sprite==="tobi"){ctx.fillStyle="#3a3f4a";roundRect(-8,-6,16,18,4);ctx.fill();
+    ctx.fillStyle="#2a2f38";ctx.beginPath();ctx.arc(0,-6,7,0,Math.PI);ctx.fill();head();
+    ctx.fillStyle="#5a4632";ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();
+    ctx.fillStyle="#1b1f26";ctx.fillRect(-9,8,18,4);ctx.fillStyle="#6ea8ff";for(let i=-8;i<8;i+=3)ctx.fillRect(i,9,2,2);eye();}
+  else if(n.sprite==="oracle"){ctx.fillStyle="#3b2a6a";ctx.beginPath();ctx.moveTo(-9,14);ctx.lineTo(-6,-6);ctx.lineTo(6,-6);ctx.lineTo(9,14);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#e8d24a";for(let i=0;i<4;i++)ctx.fillRect(-4+(i%2)*6,-2+(i>1?7:0),1.4,1.4);
+    head("#e6c9a6");ctx.fillStyle="#d7d7e6";ctx.beginPath();ctx.arc(0,-9,5,0.1,Math.PI-0.1);ctx.fill();
+    ctx.fillStyle="#2a1f52";ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(7,-12);ctx.lineTo(-7,-12);ctx.closePath();ctx.fill();ctx.fillRect(-8,-13,16,2);
+    ctx.fillStyle="#e8d24a";ctx.beginPath();ctx.arc(0,-19,1.4,0,7);ctx.fill();
+    ctx.strokeStyle="#6b4a2f";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(f*9,-16);ctx.lineTo(f*9,13);ctx.stroke();
+    ctx.fillStyle="#7ad0ff";ctx.beginPath();ctx.arc(f*9,-18,3,0,7);ctx.fill();ctx.fillStyle="#123";ctx.fillRect(f>0?1:-3,-13,2,2);}
+  else{ctx.fillStyle="#6a3fa0";roundRect(-8,-6,16,18,4);ctx.fill();head();eye();}
+  ctx.restore();
   ctx.fillStyle="#e8c46a";ctx.font="bold 10px Trebuchet MS";ctx.textAlign="center";
-  ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText(n.name,sx,sy-24);ctx.fillText(n.name,sx,sy-24);}
+  ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText(n.name,sx,sy-26);ctx.fillText(n.name,sx,sy-26);}
 function drawCrate(c){const sx=SX(c.tx*TILE+TILE/2),sy=SY(c.ty*TILE+TILE/2);if(sx<-60||sx>VW+60)return;shadow(sx,sy+12,13);
   if(c.cd>0){ctx.fillStyle="#6b563b";ctx.fillRect(sx-8,sy+2,16,8);return;}
   ctx.fillStyle="#a9793f";roundRect(sx-12,sy-12,24,24,3);ctx.fill();
@@ -682,7 +758,13 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
   else if(o.type==="bush"){shadow(sx,sy,11);ctx.fillStyle="#2f5a2a";ctx.beginPath();ctx.arc(sx-6,sy-5,8,0,7);ctx.arc(sx+6,sy-5,8,0,7);ctx.arc(sx,sy-9,9,0,7);ctx.fill();}
   else if(o.type==="lamp"){shadow(sx,sy,6);ctx.strokeStyle="#333";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,sy-22);ctx.stroke();
     ctx.fillStyle="rgba(255,220,120,0.9)";ctx.beginPath();ctx.arc(sx,sy-24,5,0,7);ctx.fill();}
-  else if(o.type==="sign"){shadow(sx,sy,7);ctx.fillStyle="#6b4a2a";ctx.fillRect(sx-2,sy-14,4,14);ctx.fillStyle="#8a6a3a";ctx.fillRect(sx-11,sy-24,22,12);}}
+  else if(o.type==="sign"){shadow(sx,sy,7);ctx.fillStyle="#6b4a2a";ctx.fillRect(sx-2,sy-14,4,14);ctx.fillStyle="#8a6a3a";ctx.fillRect(sx-11,sy-24,22,12);}
+  else if(o.type==="campfire"){const t=Date.now()/120;shadow(sx,sy+3,13);
+    ctx.fillStyle="#3a2a18";for(let i=-1;i<=1;i++){ctx.save();ctx.translate(sx+i*5,sy+2);ctx.rotate(i*0.5);ctx.fillRect(-6,-2,12,3);ctx.restore();}
+    for(let i=0;i<5;i++){const fx=sx+Math.sin(t+i)*4;ctx.fillStyle=i%2?"#ffb020":"#ff6a1a";ctx.beginPath();
+      ctx.moveTo(fx-4+i,sy);ctx.quadraticCurveTo(fx,sy-15-Math.sin(t*2+i)*4,fx+4-i,sy);ctx.closePath();ctx.fill();}
+    ctx.fillStyle="rgba(255,225,140,0.95)";ctx.beginPath();ctx.arc(sx,sy-4,3,0,7);ctx.fill();
+    ctx.fillStyle="rgba(255,120,40,0.16)";ctx.beginPath();ctx.arc(sx,sy-6,16,0,7);ctx.fill();}}
 function drawFX(){ctx.textAlign="center";
   for(const h of hitsplats){const sx=SX(h.x),sy=SY(h.y)-(34-h.life)*0.4;ctx.globalAlpha=Math.min(1,h.life/12);
     if(typeof h.val==="number"){ctx.fillStyle=h.color;ctx.beginPath();ctx.arc(sx,sy,9,0,7);ctx.fill();
@@ -707,6 +789,10 @@ function drawHpOrb(g,x,y){const p=state.player;g.save();g.translate(x,y);
   g.strokeText(Math.max(0,Math.ceil(p.hp)),0,4);g.fillText(Math.max(0,Math.ceil(p.hp)),0,4);g.restore();}
 function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=H/2-4;const R=Math.min(W/2,H/2)-8;const p=state.player;
   mmctx.clearRect(0,0,W,H);
+  if(p.curseUntil>Date.now()){mmctx.fillStyle="#0a0a0a";mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.fill();
+    mmctx.strokeStyle="#000";mmctx.lineWidth=4;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
+    mmctx.fillStyle="#c8342f";mmctx.font="bold 11px Trebuchet MS";mmctx.textAlign="center";
+    mmctx.fillText("SDP ACCESS",cx,cy-3);mmctx.fillText("REVOKED",cx,cy+11);drawHpOrb(mmctx,15,H-18);return;}
   mmctx.save();mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.clip();
   mmctx.fillStyle="#1a221a";mmctx.fillRect(0,0,W,H);
   const scale=3.6;mmctx.imageSmoothingEnabled=false;
@@ -738,11 +824,18 @@ function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled
   drawWater();drawMarker();
   const list=[];for(const o of objects)list.push({y:(o.type==="bank"||o.type==="store")?(o.ty+o.h)*TILE:(o.ty+1)*TILE,d:()=>drawObject(o)});
   for(const c of crates)list.push({y:(c.ty+1)*TILE,d:()=>drawCrate(c)});
-  for(const n of NPCS)list.push({y:(n.ty+1)*TILE,d:()=>drawNPC(n)});
+  for(const n of NPCS)list.push({y:n.py+15,d:()=>drawNPC(n)});
   for(const m of monsters){if(m.dead)continue;list.push({y:(m.ty+1)*TILE,d:()=>drawMonster(m)});}
   const p=state.player;list.push({y:p.py+15,d:()=>drawPlayer(p)});
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
-  drawCompanion();drawFX();drawHUD();drawMinimap();}
+  drawCompanion();drawFX();drawCurse();drawHUD();drawMinimap();}
+function drawCurse(){if(!(state.player.curseUntil>Date.now()))return;const cx=VW/2,cy=VH/2;
+  const g=ctx.createRadialGradient(cx,cy,55,cx,cy,190);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,0.95)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
+  const left=Math.ceil((state.player.curseUntil-Date.now())/1000);
+  ctx.fillStyle="#d0453f";ctx.font="bold 13px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
+  const msg="SDP DATA RESTRICTION CURSE — visibility lost ("+left+"s)";
+  ctx.strokeText(msg,cx,26);ctx.fillText(msg,cx,26);}
 // ============================================================ UI (DOM)
 const chatEl=document.getElementById("chat");
 function log(html,cls=""){const d=document.createElement("div");d.className="l "+cls;d.innerHTML=html;
@@ -777,7 +870,7 @@ function renderUI(){
     for(let i=0;i<24;i++){const s=document.createElement("div");s.className="slot";
       if(ent[i]){const k=ent[i][0],v=ent[i][1],it=ITEM_DEFS[k]||{glyph:"?",name:k};
         s.innerHTML=it.glyph+(v>1?'<span class="qty">'+v+"</span>":"");s.dataset.item=k;
-        const usable=it.kind||it.heal||it.teleport||it.toggle||it.companion||it.buff;
+        const usable=it.kind||it.heal||it.teleport||it.toggle||it.companion||it.buff||it.tool||it.raw||it.cursed||it.fire;
         if(usable)s.style.cursor="pointer";
         if(eq.includes(k))s.style.borderColor="#8ce39a";}
       invEl.appendChild(s);}}
@@ -841,6 +934,11 @@ function useSlot(k){const it=ITEM_DEFS[k];if(!it||!(state.inv[k]>0))return;
   if(it.kind==="weapon"){state.player.weapon=k;log(`You equip the <b>${it.name}</b>.`,"good");}
   else if(it.kind==="shield"){state.player.shield=k;log(`You equip the <b>${it.name}</b>.`,"good");}
   else if(it.kind==="armor"){const slot=it.slot||"body";state.player[slot]=k;log(`You equip the <b>${it.name}</b>.`,"good");}
+  else if(it.tool==="fish"){log("Cast your Fishing Rod at a body of water to fish.","");}
+  else if(it.raw){selectedItem="rawFish";log("<b>Raw Fish</b> selected — now click a campfire to cook it.","");}
+  else if(it.cursed){applyCurse();} // trying to eat/use Bad Data triggers the curse
+  else if(it.fire){if((state.inv.logs||0)<1){log("You need a <b>Product Log</b> to build a campfire — fell a tree first.","");return;}
+    state.inv.merchantFire--;state.inv.logs--;buildCampfire();log("You combine Merchant Fire with Product Logs and build a crackling campfire!","good");}
   else if(it.heal){const cap=Math.floor(state.player.maxHp*(it.over||1));const h=Math.min(it.heal,cap-state.player.hp);
     if(h<=0){log("You're already at full health.","");return;}
     state.player.hp+=h;state.inv[k]--;hitsplat(state.player.px,state.player.py-4,"+"+h,"#4fae5a");log(`You drink a <b>${it.name}</b> (+${h} health).`,"good");}
@@ -865,7 +963,7 @@ function itemTip(k){const it=ITEM_DEFS[k]||{name:k};const e=[];
   else if(it.kind==="shield"){e.push("Shield");e.push("Defence: +"+it.def);}
   else if(it.heal){e.push("Restores "+it.heal+" health"+(it.over?" (can overheal past 100%)":""));}
   if(it.sell)e.push("Sell: "+it.sell+" GMV");
-  const act=it.kind?"Left-click to equip":(it.heal?"Left-click to drink":"");
+  const act=it.kind?"Left-click to equip":it.heal?"Left-click to eat":it.raw?"Left-click to select, then click a campfire":it.fire?"Left-click (with logs) to build a campfire":it.tool?"Click a body of water to fish":it.cursed?"Cursed — do NOT cook or eat":it.teleport?"Left-click to teleport to town":it.toggle?"Left-click to toggle":it.companion?"Left-click to summon":it.buff?"Left-click to use":"";
   return `<div class="tt-name">${it.glyph||""} ${it.name}</div>`+(it.desc?`<div class="tt-desc">${it.desc}</div>`:"")+
     `<div class="tt-eff">${e.join("<br>")}</div>`+(act?`<div class="tt-act">${act}</div>`:"");}
 function showTip(k,x,y){tipEl.innerHTML=itemTip(k);tipEl.style.display="block";moveTip(x,y);}
