@@ -404,7 +404,7 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     log("You chop some Raw Goods from the Product Crate.","good");pending=null;return;}
   if(pending.kind==="tree"){const o=ref;if(o.felled){pending=null;return;}if(now-lastAction<700)return;lastAction=now;
     p.atkAnim=ATK_FRAMES;gainXp("sourcing",10);o.hp--;
-    if(o.hp<=0){o.felled=true;o.respawnAt=now+9000;blockObj[o.ty][o.tx]=0;addItem("logs",1);
+    if(o.hp<=0){o.felled=true;o.respawnAt=now+300000;blockObj[o.ty][o.tx]=0;addItem("logs",1);
       log("Timber! You fell the tree and clear the path.","good");questProgress("logs");pending=null;}return;}
   if(pending.kind==="rock"){const o=ref;if(o.cd>0){pending=null;return;}if(now-lastAction<750)return;lastAction=now;
     p.atkAnim=ATK_FRAMES;gainXp("mining",12);addItem("ore",1);o.cd=4000;
@@ -419,7 +419,7 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     if(w.selfDmg){p.hp-=w.selfDmg;hitsplat(p.px,p.py-4,w.selfDmg,"#a11");}
     m.hp-=dmg;m.flash=8;hitsplat(m.px,m.py,dmg,crit?"#ffd166":"#c8342f");
     if(p.hp<=0){die();return;}
-    if(m.hp<=0){m.dead=true;m.respawnAt=now+d.respawn*1000;m.aggro=false;pending=null;gainXp("selling",d.xp);
+    if(m.hp<=0){m.dead=true;m.respawnAt=now+300000;m.aggro=false;pending=null;gainXp("selling",d.xp);
       const find=(ITEM_DEFS[state.player.head]&&ITEM_DEFS[state.player.head].find)||1;state.gmv+=Math.round(d.gmv*find);
       hitsplat(m.px,m.py-14,"+"+Math.round(d.gmv*find),"#e8c46a");
       let msg=`You defeat the <b>${d.name}</b>. (+${d.xp} Checkout Combat xp, +${Math.round(d.gmv*find)} GMV)`;
@@ -756,6 +756,12 @@ document.querySelectorAll(".osrs-tab").forEach(t=>t.addEventListener("click",()=
 document.getElementById("reset-btn").addEventListener("click",()=>{if(confirm("Wipe your store and start a new game?")){
   state=null;localStorage.removeItem("shopscape");location.reload();}}); // null state first so beforeunload save() is skipped
 const skillsEl=document.getElementById("skills"),invEl=document.getElementById("inv-grid"),combatEl=document.getElementById("combat-info"),questsEl=document.getElementById("quests-log"),equipEl=document.getElementById("equip-view");
+let lastInvSig="";
+// Delegated inventory handlers on the persistent grid (survive per-slot rebuilds → fixes stuck tooltip + dead clicks)
+invEl.addEventListener("click",e=>{const s=e.target.closest(".slot");if(s&&s.dataset.item)useSlot(s.dataset.item);});
+invEl.addEventListener("mouseover",e=>{const s=e.target.closest(".slot");if(s&&s.dataset.item)showTip(s.dataset.item,e.clientX,e.clientY);else hideTip();});
+invEl.addEventListener("mousemove",e=>{const s=e.target.closest(".slot");if(s&&s.dataset.item)moveTip(e.clientX,e.clientY);else hideTip();});
+invEl.addEventListener("mouseleave",hideTip);
 function renderUI(){
   skillsEl.innerHTML="";let total=0;const eq=[state.player.weapon,state.player.shield,state.player.head,state.player.body,state.player.legs,state.player.hands];
   for(const s of SKILL_DEFS){const xp=(state.skills[s.key]||{}).xp||0,lvl=levelForXp(xp);total+=lvl;
@@ -765,19 +771,16 @@ function renderUI(){
       `<div class="bar"><span style="width:${pct}%"></span></div>`+
       `<div class="xp-sub">${Math.floor(xp)} xp${lvl<99?" &middot; "+Math.max(0,next-Math.floor(xp))+" to next":""}</div>`;
     skillsEl.appendChild(d);}
-  invEl.innerHTML="";const ent=Object.entries(state.inv).filter(e=>e[1]>0);
-  for(let i=0;i<28;i++){const s=document.createElement("div");s.className="slot";
-    if(ent[i]){const k=ent[i][0],v=ent[i][1],it=ITEM_DEFS[k]||{glyph:"?",name:k};
-      s.innerHTML=it.glyph+(v>1?'<span class="qty">'+v+"</span>":"");
-      const usable=it.kind||it.heal||it.teleport||it.toggle||it.companion||it.buff;
-      s.title=it.name+(it.kind?" — click to equip":(usable?" — click to use":""));
-      if(usable)s.style.cursor="pointer";
-      if(eq.includes(k))s.style.borderColor="#8ce39a";
-      s.addEventListener("click",()=>useSlot(k));
-      s.addEventListener("mouseenter",ev=>showTip(k,ev.clientX,ev.clientY));
-      s.addEventListener("mousemove",ev=>moveTip(ev.clientX,ev.clientY));
-      s.addEventListener("mouseleave",hideTip);}
-    invEl.appendChild(s);}
+  const ent=Object.entries(state.inv).filter(e=>e[1]>0);
+  const invSig=ent.map(e=>e[0]+":"+e[1]).join(",")+"|"+eq.join(",");
+  if(invSig!==lastInvSig){lastInvSig=invSig;invEl.innerHTML="";
+    for(let i=0;i<24;i++){const s=document.createElement("div");s.className="slot";
+      if(ent[i]){const k=ent[i][0],v=ent[i][1],it=ITEM_DEFS[k]||{glyph:"?",name:k};
+        s.innerHTML=it.glyph+(v>1?'<span class="qty">'+v+"</span>":"");s.dataset.item=k;
+        const usable=it.kind||it.heal||it.teleport||it.toggle||it.companion||it.buff;
+        if(usable)s.style.cursor="pointer";
+        if(eq.includes(k))s.style.borderColor="#8ce39a";}
+      invEl.appendChild(s);}}
   const sl=levelForXp(state.skills.selling.xp);const nm=(key)=>{const it=ITEM_DEFS[key];return it?it.glyph+" "+it.name:"None";};
   combatEl.innerHTML=`<div>Hero: <b>${CHARS[state.player.char]?CHARS[state.player.char].name:"?"}</b></div>`+
     `<div>Merchant Level: <b>${total}</b></div><div>GMV: <b>${Math.floor(state.gmv).toLocaleString()} 🪙</b></div>`+
@@ -881,9 +884,9 @@ function load(){try{const r=localStorage.getItem("shopscape");if(!r)return null;
     quests:o.quests||{},granted:o.granted||{},buffs:{}};}catch(e){return null;}}
 setInterval(save,4000);window.addEventListener("beforeunload",save);
 // ============================================================ MAIN LOOP
-let last=performance.now();
+let last=performance.now(),uiT=0;
 function loop(now){const dt=Math.min(50,now-last);last=now;
-  if(state){movement(dt);actionTick();worldTick(dt);render();renderUI();}
+  if(state){movement(dt);actionTick();worldTick(dt);render();if(now-uiT>160){uiT=now;renderUI();}}
   requestAnimationFrame(loop);}
 resize();
 const overlay=document.getElementById("overlay"),charcards=document.getElementById("charcards");
