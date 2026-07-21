@@ -6,20 +6,29 @@
   *{box-sizing:border-box;}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
     font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;}
-  #app{display:grid;grid-template-columns:1fr 232px;grid-template-rows:1fr 168px;
+  #app{display:grid;grid-template-columns:1fr 242px;grid-template-rows:1fr 168px;
     grid-template-areas:"game side" "chat side";height:100vh;gap:6px;padding:6px;}
   #game-wrap{grid-area:game;position:relative;border:2px solid #000;border-radius:6px;overflow:hidden;min-height:0;background:#000;}
   canvas#game{display:block;width:100%;height:100%;cursor:pointer;}
-  /* Side panel — OSRS stone */
-  #side{grid-area:side;display:flex;flex-direction:column;background:linear-gradient(#4a3f2e,#3b3227);
+  /* Right nav — OSRS layout: minimap on top, tabbed panel below */
+  #side{grid-area:side;display:flex;flex-direction:column;gap:5px;min-height:0;}
+  #map-panel{position:relative;height:170px;flex:none;background:linear-gradient(#5a4c39,#3b3227);
     border:2px solid #000;border-radius:6px;overflow:hidden;}
-  #tabs{display:flex;border-bottom:2px solid #000;}
-  .tab{flex:1;padding:8px 0;text-align:center;font-size:12px;font-weight:bold;letter-spacing:.5px;
-    color:var(--muted);background:linear-gradient(#5a4c39,#40372a);border-right:1px solid #000;cursor:pointer;}
-  .tab:last-child{border-right:none;}
-  .tab.active{color:var(--gold);background:linear-gradient(#6b5942,#4a3f2e);box-shadow:inset 0 2px 0 #7a6647;}
-  .panel{display:none;flex:1;overflow-y:auto;padding:10px;}
+  #minimap{display:block;width:100%;height:170px;}
+  #side-inner{flex:1;display:flex;flex-direction:column;min-height:0;background:linear-gradient(#4a3f2e,#3b3227);
+    border:2px solid #000;border-radius:6px;overflow:hidden;}
+  .tabrow{display:flex;background:#2b241b;border-bottom:2px solid #000;}
+  .tabrow.bot{border-bottom:none;border-top:2px solid #000;}
+  .osrs-tab{flex:1;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;
+    background:linear-gradient(#5a4c39,#40372a);border-right:1px solid #14100b;cursor:pointer;}
+  .osrs-tab:last-child{border-right:none;}
+  .osrs-tab.active{background:linear-gradient(#7a6647,#5a4c39);box-shadow:inset 0 0 0 1px #e8c46a;}
+  .osrs-tab.dis{opacity:.5;cursor:default;}
+  #panels{flex:1;position:relative;min-height:0;}
+  .panel{display:none;position:absolute;inset:0;overflow-y:auto;padding:10px;}
   .panel.active{display:block;}
+  .soon{color:var(--muted);font-size:12px;line-height:1.6;text-align:center;padding:24px 8px;}
+  .soon b{color:var(--gold);}
   /* Inventory */
   #inv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
   .slot{aspect-ratio:1;background:#2b241b;border:1px solid #14100b;border-radius:5px;

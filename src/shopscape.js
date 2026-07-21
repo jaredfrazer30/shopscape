@@ -350,8 +350,10 @@ function hitsplat(x,y,val,color){hitsplats.push({x,y,val,color,life:34});}
 
 // ============================================================ INPUT (click-to-walk, RS style)
 const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const mmCanvas=document.getElementById("minimap"),mmctx=mmCanvas.getContext("2d");
 let VW=800,VH=600;const cam={x:0,y:0};
-function resize(){const w=document.getElementById("game-wrap");VW=w.clientWidth;VH=w.clientHeight;canvas.width=VW;canvas.height=VH;}
+function resize(){const w=document.getElementById("game-wrap");VW=w.clientWidth;VH=w.clientHeight;canvas.width=VW;canvas.height=VH;
+  if(mmCanvas){mmCanvas.width=mmCanvas.clientWidth||238;mmCanvas.height=mmCanvas.clientHeight||170;}}
 window.addEventListener("resize",resize);
 function goTo(tx,ty){const pt=pxTile(state.player.px,state.player.py);const p=findPath(pt.x,pt.y,tx,ty);state.player.path=p||[];}
 function setPending(kind,ref){pending={kind,ref};const pt=pxTile(state.player.px,state.player.py);
@@ -690,28 +692,37 @@ function drawFX(){ctx.textAlign="center";
   for(const x of xpdrops){const sx=SX(x.x),sy=SY(x.y)-(70-x.life)*0.5;ctx.globalAlpha=Math.min(1,x.life/25);
     ctx.fillStyle="#8ce39a";ctx.font="bold 12px Trebuchet MS";ctx.strokeStyle="#000";ctx.lineWidth=3;
     ctx.strokeText(x.glyph+" +"+x.val+" xp",sx,sy);ctx.fillText(x.glyph+" +"+x.val+" xp",sx,sy);ctx.globalAlpha=1;}}
-function drawMinimap(){const R=64,cx=VW-R-14,cy=R+14;const p=state.player;
-  ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();
-  const scale=3.4;const pw=MAP_W*scale,ph=MAP_H*scale;
-  ctx.drawImage(minibuf,0,0,MAP_W,MAP_H,cx-p.px/TILE*scale,cy-p.py/TILE*scale,pw,ph);
+function drawCompass(g,x,y){g.save();g.translate(x,y);
+  g.fillStyle="#2b241b";g.beginPath();g.arc(0,0,11,0,7);g.fill();g.strokeStyle="#000";g.lineWidth=2;g.stroke();
+  g.fillStyle="#c8342f";g.beginPath();g.moveTo(0,-9);g.lineTo(3,0);g.lineTo(0,9);g.lineTo(-3,0);g.closePath();g.fill();
+  g.fillStyle="#e8e2d2";g.beginPath();g.moveTo(0,-9);g.lineTo(3,0);g.lineTo(-3,0);g.closePath();g.fill();
+  g.fillStyle="#e8c46a";g.font="bold 8px Trebuchet MS";g.textAlign="center";g.fillText("N",0,-12);g.restore();}
+function drawHpOrb(g,x,y){const p=state.player;g.save();g.translate(x,y);
+  g.fillStyle="#2b241b";g.beginPath();g.arc(0,0,14,0,7);g.fill();
+  g.fillStyle="#3a0a08";g.beginPath();g.arc(0,0,12,0,7);g.fill();
+  const hf=Math.max(0,Math.min(1,p.hp/p.maxHp));g.save();g.beginPath();g.arc(0,0,12,0,7);g.clip();
+  g.fillStyle=p.hp>p.maxHp?"#e8c46a":"#38b04a";g.fillRect(-12,12-24*hf,24,24*hf);g.restore();
+  g.strokeStyle="#000";g.lineWidth=2;g.beginPath();g.arc(0,0,14,0,7);g.stroke();
+  g.fillStyle="#fff";g.font="bold 11px Trebuchet MS";g.textAlign="center";g.strokeStyle="#000";g.lineWidth=3;
+  g.strokeText(Math.max(0,Math.ceil(p.hp)),0,4);g.fillText(Math.max(0,Math.ceil(p.hp)),0,4);g.restore();}
+function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=H/2-4;const R=Math.min(W/2,H/2)-8;const p=state.player;
+  mmctx.clearRect(0,0,W,H);
+  mmctx.save();mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.clip();
+  mmctx.fillStyle="#1a221a";mmctx.fillRect(0,0,W,H);
+  const scale=3.6;mmctx.imageSmoothingEnabled=false;
   const ox=cx-p.px/TILE*scale,oy=cy-p.py/TILE*scale;
-  for(const m of monsters){if(m.dead)continue;ctx.fillStyle=MT[m.type].boss?"#ff3b30":"#e0554f";ctx.fillRect(ox+m.tx*scale-1,oy+m.ty*scale-1,3,3);}
-  for(const c of crates){if(c.cd>0)continue;ctx.fillStyle="#e8c46a";ctx.fillRect(ox+c.tx*scale-1,oy+c.ty*scale-1,3,3);}
-  for(const n of NPCS){ctx.fillStyle="#fff";ctx.fillRect(ox+n.tx*scale-1,oy+n.ty*scale-1,3,3);}
-  ctx.fillStyle="#fff";ctx.strokeStyle="#000";ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();ctx.stroke();
-  ctx.restore();
-  ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();
-  ctx.strokeStyle="#5a4c39";ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();
-  // zone label
-  ctx.fillStyle="#e8c46a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
-  ctx.strokeText(curZone(),cx,cy+R+16);ctx.fillText(curZone(),cx,cy+R+16);
-  // health orb
-  const ox2=cx-R-2,oy2=cy+R-6;ctx.fillStyle="#2b241b";ctx.beginPath();ctx.arc(ox2,oy2,17,0,7);ctx.fill();
-  const hf=p.hp/p.maxHp;ctx.fillStyle="#7a1512";ctx.beginPath();ctx.arc(ox2,oy2,15,0,7);ctx.fill();
-  ctx.save();ctx.beginPath();ctx.arc(ox2,oy2,15,0,7);ctx.clip();ctx.fillStyle="#c8342f";ctx.fillRect(ox2-15,oy2+15-30*hf,30,30*hf);ctx.restore();
-  ctx.strokeStyle="#000";ctx.lineWidth=2;ctx.beginPath();ctx.arc(ox2,oy2,17,0,7);ctx.stroke();
-  ctx.fillStyle="#fff";ctx.font="bold 12px Trebuchet MS";ctx.strokeStyle="#000";ctx.lineWidth=3;
-  ctx.strokeText(Math.max(0,Math.ceil(p.hp)),ox2,oy2+4);ctx.fillText(Math.max(0,Math.ceil(p.hp)),ox2,oy2+4);}
+  mmctx.drawImage(minibuf,0,0,MAP_W,MAP_H,ox,oy,MAP_W*scale,MAP_H*scale);
+  for(const m of monsters){if(m.dead)continue;mmctx.fillStyle=MT[m.type].boss?"#ff3b30":"#e0554f";mmctx.fillRect(ox+m.tx*scale-1,oy+m.ty*scale-1,3,3);}
+  for(const c of crates){if(c.cd>0)continue;mmctx.fillStyle="#e8c46a";mmctx.fillRect(ox+c.tx*scale-1,oy+c.ty*scale-1,3,3);}
+  for(const n of NPCS){mmctx.fillStyle="#fff";mmctx.fillRect(ox+n.tx*scale-1,oy+n.ty*scale-1,3,3);}
+  mmctx.fillStyle="#fff";mmctx.strokeStyle="#000";mmctx.lineWidth=1;mmctx.beginPath();mmctx.arc(cx,cy,3,0,7);mmctx.fill();mmctx.stroke();
+  mmctx.restore();
+  mmctx.strokeStyle="#000";mmctx.lineWidth=4;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
+  mmctx.strokeStyle="#7a6647";mmctx.lineWidth=2;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
+  drawCompass(mmctx,15,15);
+  drawHpOrb(mmctx,15,H-18);
+  mmctx.fillStyle="#e8c46a";mmctx.font="bold 11px Trebuchet MS";mmctx.textAlign="center";mmctx.strokeStyle="#000";mmctx.lineWidth=3;
+  mmctx.strokeText(curZone(),cx,H-5);mmctx.fillText(curZone(),cx,H-5);}
 function curZone(){const t=pxTile(state.player.px,state.player.py);for(const z of ZONES)if(t.x>=z.x&&t.x<z.x+z.w&&t.y>=z.y&&t.y<z.y+z.h)return z.name;return "The Wilds";}
 function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
   ctx.fillStyle="rgba(10,12,15,0.72)";roundRect(x-5,y-5,w+10,h+10,7);ctx.fill();
@@ -736,13 +747,15 @@ function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled
 const chatEl=document.getElementById("chat");
 function log(html,cls=""){const d=document.createElement("div");d.className="l "+cls;d.innerHTML=html;
   chatEl.appendChild(d);chatEl.scrollTop=chatEl.scrollHeight;while(chatEl.children.length>80)chatEl.removeChild(chatEl.firstChild);}
-document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+document.querySelectorAll(".osrs-tab").forEach(t=>t.addEventListener("click",()=>{
+  if(t.classList.contains("dis")){log(`The <b>${t.title}</b> panel isn't available in Shopscape yet.`,"");return;}
+  const panel=document.getElementById("panel-"+t.dataset.tab);if(!panel)return;
+  document.querySelectorAll("#tabrow-top .osrs-tab").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active");document.getElementById("panel-"+t.dataset.tab).classList.add("active");}));
+  t.classList.add("active");panel.classList.add("active");}));
 document.getElementById("reset-btn").addEventListener("click",()=>{if(confirm("Wipe your store and start a new game?")){
   state=null;localStorage.removeItem("shopscape");location.reload();}}); // null state first so beforeunload save() is skipped
-const skillsEl=document.getElementById("skills"),invEl=document.getElementById("inv-grid"),combatEl=document.getElementById("combat-info"),questsEl=document.getElementById("quests-log");
+const skillsEl=document.getElementById("skills"),invEl=document.getElementById("inv-grid"),combatEl=document.getElementById("combat-info"),questsEl=document.getElementById("quests-log"),equipEl=document.getElementById("equip-view");
 function renderUI(){
   skillsEl.innerHTML="";let total=0;const eq=[state.player.weapon,state.player.shield,state.player.head,state.player.body,state.player.legs,state.player.hands];
   for(const s of SKILL_DEFS){const xp=(state.skills[s.key]||{}).xp||0,lvl=levelForXp(xp);total+=lvl;
@@ -781,6 +794,11 @@ function renderUI(){
     return `<div class="skill"><div class="skill-top"><span class="name">${done?"✔ ":""}${q.name}</span>`+
       `<span class="lvl" style="color:${done?"#8ce39a":"#b7a988"}">${done?"Done":"Active"}</span></div>`+
       `<div class="xp-sub">${q.desc}</div></div>`;}).join("");}
+  if(equipEl){const slots=[["weapon","Weapon"],["shield","Shield"],["head","Head"],["body","Body"],["legs","Legs"],["hands","Hands"]];
+    equipEl.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:11px;margin-bottom:8px">Worn Equipment</div>`+
+      slots.map(([k,lbl])=>{const it=ITEM_DEFS[state.player[k]];const bonus=it?(it.atk?`+${it.atk} atk`:it.def?`+${it.def} def`:""):"";
+        return `<div class="mrow"><span class="nm">${lbl}: <b style="color:#e8c46a">${it?it.glyph+" "+it.name:"—"}</b></span>`+(bonus?`<span class="price">${bonus}</span>`:"")+`</div>`;}).join("")+
+      `<div style="margin-top:8px;color:var(--muted);font-size:11px;text-align:center;line-height:1.6">Total armour: <b style="color:#e8c46a">+${equipDef()} def</b><br>Max hit: <b style="color:#e8c46a">${2+Math.floor(levelForXp(state.skills.selling.xp)*0.6)+equipAtk()}</b> · Equip gear from the Inventory tab.</div>`;}
 }
 // ===== Shop / Bank interiors =====
 const modalEl=document.getElementById("modal"),modalBody=document.getElementById("modalbody"),

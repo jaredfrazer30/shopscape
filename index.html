@@ -16,17 +16,37 @@
       <div id="modalbody"></div></div></div>
   </div>
   <div id="side">
-    <div id="tabs">
-      <div class="tab active" data-tab="inv">Inventory</div>
-      <div class="tab" data-tab="skills">Skills</div>
-      <div class="tab" data-tab="combat">Gear</div>
-      <div class="tab" data-tab="quests">Quests</div>
+    <div id="map-panel"><canvas id="minimap" width="238" height="170"></canvas></div>
+    <div id="side-inner">
+      <div class="tabrow" id="tabrow-top">
+        <div class="osrs-tab" data-tab="combat" title="Combat">&#9876;&#65039;</div>
+        <div class="osrs-tab" data-tab="skills" title="Skills">&#128202;</div>
+        <div class="osrs-tab" data-tab="quests" title="Quest Journal">&#128220;</div>
+        <div class="osrs-tab active" data-tab="inv" title="Inventory">&#127890;</div>
+        <div class="osrs-tab" data-tab="equip" title="Worn Equipment">&#128737;&#65039;</div>
+        <div class="osrs-tab" data-tab="prayer" title="Prayer">&#128591;</div>
+        <div class="osrs-tab" data-tab="magic" title="Magic">&#10024;</div>
+      </div>
+      <div id="panels">
+        <div class="panel active" id="panel-inv"><div id="inv-grid"></div>
+          <button id="reset-btn">Start a new store (wipe save)</button></div>
+        <div class="panel" id="panel-skills"><div id="skills"></div></div>
+        <div class="panel" id="panel-combat"><div id="combat-info"></div></div>
+        <div class="panel" id="panel-equip"><div id="equip-view"></div></div>
+        <div class="panel" id="panel-quests"><div id="quests-log"></div></div>
+        <div class="panel" id="panel-prayer"><div class="soon">&#128267; <b>Trust Battery</b><br>Prayer-style buffs that charge with good faith and drain with betrayal.<br>Coming in a future update.</div></div>
+        <div class="panel" id="panel-magic"><div class="soon">&#128167; <b>Liquid</b><br>The Magic spellbook — cast templated Liquid spells that scale with level.<br>Coming in a future update.</div></div>
+      </div>
+      <div class="tabrow bot" id="tabrow-bot">
+        <div class="osrs-tab dis" title="Clan Chat">&#127937;</div>
+        <div class="osrs-tab dis" title="Friends List">&#128101;</div>
+        <div class="osrs-tab dis" title="Account Management">&#128100;</div>
+        <div class="osrs-tab dis" title="Logout">&#9211;</div>
+        <div class="osrs-tab dis" title="Settings">&#9881;&#65039;</div>
+        <div class="osrs-tab dis" title="Emotes">&#128512;</div>
+        <div class="osrs-tab dis" title="Music Player">&#127925;</div>
+      </div>
     </div>
-    <div class="panel active" id="panel-inv"><div id="inv-grid"></div>
-      <button id="reset-btn">Start a new store (wipe save)</button></div>
-    <div class="panel" id="panel-skills"><div id="skills"></div></div>
-    <div class="panel" id="panel-combat"><div id="combat-info"></div></div>
-    <div class="panel" id="panel-quests"><div id="quests-log"></div></div>
   </div>
   <div id="chat-wrap"><div id="chat"></div></div>
 </div>
