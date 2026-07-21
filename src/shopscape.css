@@ -48,15 +48,19 @@
   #reset-btn{width:100%;margin-top:10px;padding:7px;background:#2b241b;color:var(--muted);
     border:1px solid #000;border-radius:5px;cursor:pointer;font-size:11px;}
   /* Chatbox — OSRS parchment */
-  #chat-wrap{grid-area:chat;background:#3b3227;border:2px solid #000;border-radius:6px;padding:4px;}
-  #chat{height:100%;background:var(--parch);border:1px solid #000;border-radius:3px;overflow-y:auto;
+  #chat-wrap{grid-area:chat;background:#3b3227;border:2px solid #000;border-radius:6px;padding:4px;display:flex;flex-direction:column;}
+  #chat{flex:1;min-height:0;background:var(--parch);border:1px solid #000;border-radius:3px;overflow-y:auto;
     padding:6px 9px;font-size:13px;line-height:1.5;color:var(--parch-ink);}
+  #chat-input{margin-top:4px;height:26px;background:#e9ddb8;border:1px solid #000;border-radius:3px;
+    padding:0 8px;color:#2c2415;font-family:inherit;font-size:13px;outline:none;}
+  #chat-input:focus{background:#f2e8c6;box-shadow:inset 0 0 0 1px #8a5a00;}
   #chat .l{margin:1px 0;}
   #chat .l b{color:#5a2d0c;}
   #chat .l.sys b{color:#1f4b8f;}
   #chat .l.good b{color:#1d6b2c;}
   #chat .l.gold b{color:#8a5a00;}
   #chat .l.bad b{color:#a11;}
+  #chat .l.say b{color:#0b3a8f;}
   ::-webkit-scrollbar{width:9px;}::-webkit-scrollbar-track{background:#241d14;}
   ::-webkit-scrollbar-thumb{background:#5a4c39;border-radius:4px;}
   /* Character select overlay */

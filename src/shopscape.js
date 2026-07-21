@@ -60,8 +60,9 @@ function genWorld(){
   map[10][24]=T.BRIDGE;map[11][24]=T.BRIDGE;
   map[20][7]=T.BRIDGE;map[20][8]=T.BRIDGE;map[20][34]=T.BRIDGE;map[20][35]=T.BRIDGE;
   // buildings
-  placeBuilding(3,3,4,3,"bank",1,2);
-  placeBuilding(9,3,3,3,"store",1,2);
+  placeBuilding(3,3,4,3,"bank",1,3);
+  placeBuilding(9,3,3,3,"store",1,3);
+  placeBuilding(4,8,4,3,"hackhq",1,3);
   // object scatter helper
   const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;if(map[ty][tx]===T.WATER)return;
     if(block)blockObj[ty][tx]=1;objects.push({type,tx,ty});};
@@ -149,7 +150,7 @@ function buildTerrain(){
   for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){mg.fillStyle=MINI[map[y][x]];mg.fillRect(x,y,1,1);}
   for(const o of objects){if(o.type==="tree"||o.type==="deadtree"){mg.fillStyle="#1f3d1a";mg.fillRect(o.tx,o.ty,1,1);}
     else if(o.type==="rock"){mg.fillStyle="#555";mg.fillRect(o.tx,o.ty,1,1);}
-    else if(o.type==="bank"||o.type==="store"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
+    else if(o.type==="bank"||o.type==="store"||o.type==="hackhq"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
 }
 buildTerrain();
 for(const o of objects)if(o.type==="tree"||o.type==="deadtree"){o.felled=false;o.hp=2;o.respawnAt=0;}
@@ -270,11 +271,11 @@ const ITEM_DEFS={
 // playable characters — appearance handled in drawCharacter(), attack style in drawCharacter()/combat
 const CHARS={
   river:{name:"River",weapon:"waterStaff",shield:"blastShield",body:"dawnRobes",atk:"cast",
-    blurb:"Long blue hair, calm and analytical. Channels the Water Staff to blast foes from range."},
+    blurb:"Our resident expert for all things Shopify! With long blue hair, a water staff, and a penchant for being all-knowing, how can one say that she's not alive?!"},
   shoppy:{name:"Shoppy",weapon:"whiteGloves",shield:"moneyShield",body:"dawnRobes",atk:"punch",
-    blurb:"The green Shopify shopping-bag mascot. Throws quick one-two jabs with the White Gloves."},
+    blurb:"Our tried and true mascot, and a true OG in the scene - internationally known and locally respected, this green bag needs no introduction."},
   shoppington:{name:"Lord Shoppington",weapon:"fancyCane",shield:"trillionShield",body:"dawnRobes",atk:"poke",
-    blurb:"A distinguished bag in monocle & top hat. Skewers enemies with elegant Fancy Cane thrusts."},
+    blurb:"Some say he was born with money, others say he's self-made...All I know is this bag will give you one trillion reasons to love him!"},
 };
 const MT={
   cart:{name:"Abandoned Cart",class:"physical",hp:14,dmg:2,xp:24,gmv:6,respawn:6,drop:null,r:15,col:"#9aa3ad",spd:155,aggro:3,style:"ram"},
@@ -287,6 +288,7 @@ const MT={
   skeleton:{name:"Deprecated API Skeleton",class:"undead",hp:40,dmg:6,xp:95,gmv:30,respawn:12,drop:"elixir",r:16,col:"#d8d0c0",spd:110,aggro:4,style:"hop"},
   lich:{name:"Legacy Code Lich",bossName:"LEGACY CODE LICH",class:"undead",hp:120,dmg:11,xp:500,gmv:200,respawn:40,drop:"monolith",r:22,col:"#6a8a6a",boss:true,spd:95,aggro:6,style:"spin"},
   bezos:{name:"Jeff Bezos, Emperor of the Everything Store",bossName:"THE EMPEROR",class:"physical",hp:420,dmg:20,xp:2000,gmv:1000,respawn:120,drop:"emperorArmor",r:30,col:"#c7ccd4",boss:true,spd:100,aggro:7,style:"bite",phases:true},
+  bug:{name:"Bug",class:"physical",hp:8,dmg:1,xp:14,gmv:3,respawn:12,drop:null,r:13,col:"#7a9e3a",spd:135,aggro:2,style:"hop"},
 };
 function fix(list){return list.map(o=>{const a=nearestWalkable(o.tx,o.ty)||{x:o.tx,y:o.ty};return{...o,tx:a.x,ty:a.y};});}
 let crates=fix([[15,6],[18,9],[21,12],[16,14],[19,4],[22,7]].map(c=>({tx:c[0],ty:c[1],cd:0})));
@@ -296,6 +298,7 @@ let monsters=fix([
   ["cart",6,24],["cart",10,28],["cart",4,33],["cartGoblin",12,28],["cartGoblin",6,30],
   ["goblin",14,30],["goblin",9,34],
   ["phantom",30,24],["phantom",40,29],["phantom",45,34],["dragon",33,31],["bezos",44,34],
+  ["bug",13,13],["bug",16,11],["bug",19,13],["bug",21,10],["bug",15,17],["bug",18,18],["bug",11,15],["bug",22,15],
 ].map(m=>({type:m[0],tx:m[1],ty:m[2]}))).map(m=>({...m,px:m.tx*TILE+TILE/2,py:m.ty*TILE+TILE/2,
   home:{x:m.tx,y:m.ty},path:[],aggro:false,wanderCd:rr(500,3000),aiCd:0,atkAnim:0,atkCd:0,face:1,
   hp:MT[m.type].hp,maxHp:MT[m.type].hp,dead:false,respawnAt:0,flash:0}));
@@ -313,17 +316,18 @@ const NPCS=fix([
   {tx:4,ty:11,name:"The Partner",sprite:"partner",lines:[
     "I'm an agency crafter — I forge apps and themes into gear.",
     "Bring GMV to the General Store and I'll keep the forge stocked for you."]},
-  {tx:2,ty:17,name:"Tobi the Founder",sprite:"tobi",grant:"foundersRustBlade",lines:[
+  {tx:2,ty:17,name:"Tobi the Founder",sprite:"tobi",bugGiver:true,lines:[
     "Oh — didn't see you there. Just building mechanical keyboards between StarCraft matches.",
-    "You look like you can hold your own. Here — I forged this in Rust. Memory-safe. Never segfaults.",
-    "Go arm the rebels. Every merchant deserves a fighting chance against the Empire."]},
+    "The realm's crawling with Bugs. Squash enough of them and I'll forge you something legendary — in Rust.",
+    "Memory-safe. Never segfaults. You'll see."]},
   {tx:8,ty:16,name:"The RevOps Oracle",sprite:"oracle",lines:[
     "The sacred mart says: use governed data, brave ranger. The raw-table swamp is cursed."]},
 ]).map(n=>({...n,px:n.tx*TILE+TILE/2,py:n.ty*TILE+TILE/2,home:{x:n.tx,y:n.ty},path:[],wanderCd:rr(800,3500),face:1}));
 const DEFAULT=(charKey)=>{const c=CHARS[charKey]||CHARS.shoppy;const inv={};inv[c.weapon]=1;inv[c.shield]=1;if(c.body)inv[c.body]=1;inv.elixir=3;inv.portalStone=1;
   return{player:{px:8*TILE+20,py:8*TILE+20,hp:30,maxHp:30,path:[],anim:0,face:1,atkAnim:0,
     char:charKey||"shoppy",weapon:c.weapon,shield:c.shield,head:null,body:c.body||null,legs:null,hands:null},
-    skills:{selling:{xp:0},sourcing:{xp:0},mining:{xp:0},fishing:{xp:0}},inv,gmv:0,bank:{},granted:{},quests:{},buffs:{},reveal:false};};
+    skills:{selling:{xp:0},sourcing:{xp:0},mining:{xp:0},fishing:{xp:0}},inv,gmv:0,bank:{},granted:{},quests:{},buffs:{},reveal:false,
+    kills:0,bugKills:0,scout:false};};
 let dialogIdx={};
 let state=load(); // null => show character-select on boot
 let pending=null; // {kind:'monster'|'crate'|'npc'|'building', ref}
@@ -338,11 +342,27 @@ const QUESTS=[
   {id:"churn",name:"Slay the Churn Reaper",desc:"Defeat the Churn Dragon in the Fulfillment Fortress."},
   {id:"deprecation",name:"The Great Deprecation",desc:"Destroy the Legacy Code Lich haunting the Data Warehouse."},
   {id:"rebels",name:"Arm the Rebels",desc:"Defeat Jeff Bezos, Emperor of the Everything Store."},
+  {id:"scout",name:"Scout's Love",desc:"Defeat 25 enemies of commerce to earn a loyal companion.",count:()=>state.kills||0,goal:25},
+  {id:"bugs",name:"Squash 25 Bugs",desc:"Tobi won't part with the Rust Blade until you squash 25 Bugs.",count:()=>state.bugKills||0,goal:25,fromTobi:true},
 ];
 function questProgress(id){if(!state.quests)state.quests={};if(state.quests[id])return;state.quests[id]=true;
   const q=QUESTS.find(x=>x.id===id);if(q)log(`✔ Quest complete: <b>${q.name}</b>!`,"gold");}
+function checkKillQuests(){if(!state.quests)state.quests={};
+  if(!state.quests.scout&&(state.kills||0)>=25){questProgress("scout");grantScout();}}
+function grantScout(){state.scout=true;scout.active=true;scout.px=state.player.px-24;scout.py=state.player.py-16;scout.cd=0;
+  log("🐕 <b>Scout</b> the dog has decided you're worthy — he now follows you and joins your fights!","gold");}
 // ---- Sidekick companion familiar ----
 let companion={active:false,until:0,cd:0,px:0,py:0};
+// ---- Scout: a permanent dog companion earned from the "Scout's Love" quest ----
+let scout={active:false,px:0,py:0,cd:0,face:1};
+function scoutTick(dt){const p=state.player;const now=Date.now();
+  const tx=p.px-24*(p.face||1),ty=p.py+8;scout.face=(tx<scout.px)?-1:1;
+  scout.px+=(tx-scout.px)*0.14;scout.py+=(ty-scout.py)*0.14;scout.cd-=dt;
+  if(scout.cd<=0){scout.cd=850;let best=null,bd=3.5;
+    for(const m of monsters){if(m.dead)continue;const dd=Math.hypot((m.px-p.px)/TILE,(m.py-p.py)/TILE);if(dd<bd){bd=dd;best=m;}}
+    if(best){const dmg=2+Math.floor(Math.random()*4);best.hp-=dmg;best.flash=8;hitsplat(best.px,best.py,dmg,"#c8944a");
+      if(best.hp<=0){const d=MT[best.type];best.dead=true;best.respawnAt=now+(best.type==="bug"?12000:300000);best.aggro=false;state.gmv+=d.gmv;
+        state.kills=(state.kills||0)+1;if(best.type==="bug")state.bugKills=(state.bugKills||0)+1;gainXp("selling",Math.floor(d.xp*0.3));}}}}
 function companionTick(dt){const p=state.player;const now=Date.now();
   if(now>companion.until){companion.active=false;log("Your Sidekick familiar fades away.","");return;}
   companion.px+=((p.px-26)-companion.px)*0.12;companion.py+=((p.py-20)-companion.py)*0.12;companion.cd-=dt;
@@ -396,7 +416,7 @@ canvas.addEventListener("click",e=>{
   if(cf){setPending("campfire",cf);marker={x:wx,y:wy,life:30,kind:"red"};return;}
   const np=NPCS.find(n=>n.tx===tx&&n.ty===ty);
   if(np){setPending("npc",np);marker={x:wx,y:wy,life:30,kind:"red"};return;}
-  const b=objects.find(o=>(o.type==="bank"||o.type==="store")&&tx>=o.tx&&tx<o.tx+o.w&&ty>=o.ty&&ty<o.ty+o.h);
+  const b=objects.find(o=>(o.type==="bank"||o.type==="store"||o.type==="hackhq")&&tx>=o.tx&&tx<o.tx+o.w&&ty>=o.ty&&ty<o.ty+o.h);
   if(b){setPending("building",{tx:b.door.x,ty:b.door.y,bkind:b.type});marker={x:(b.door.x+0.5)*TILE,y:(b.door.y+0.5)*TILE,life:30,kind:"red"};return;}
   if(inb(tx,ty)&&(map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP)){
     if((state.inv.fishingRod||0)>0){setPending("fish",{tx,ty,swamp:map[ty][tx]===T.SWAMP});marker={x:wx,y:wy,life:30,kind:"red"};}
@@ -416,7 +436,12 @@ function talk(n){const i=(dialogIdx[n.name]||0)%n.lines.length;log(`<b>${n.name}
   if(n.heal&&p.hp<p.maxHp){p.hp=p.maxHp;hitsplat(p.px,p.py-4,"heal","#4fae5a");log("The CSM restores your Health Score to full.","good");}
   if(n.grant){state.granted=state.granted||{};if(!state.granted[n.grant]){state.granted[n.grant]=1;addItem(n.grant,1);
     log(`You receive the <b>${ITEM_DEFS[n.grant].name}</b>! ${ITEM_DEFS[n.grant].kind?"Equip it":"Use it"} from your inventory.`,"gold");}}
-  if(n.give&&(state.inv[n.give]||0)<1){addItem(n.give,1);log(`The CSM hands you a <b>${ITEM_DEFS[n.give].name}</b>.`,"good");}}
+  if(n.give&&(state.inv[n.give]||0)<1){addItem(n.give,1);log(`The CSM hands you a <b>${ITEM_DEFS[n.give].name}</b>.`,"good");}
+  if(n.bugGiver){state.quests=state.quests||{};
+    if(!state.quests.bugsStarted){state.quests.bugsStarted=true;log("<b>Tobi:</b> Here's the deal — squash <b>25 Bugs</b> and the Founder's Rust Blade is yours.","gold");}
+    else if((state.bugKills||0)<25){log(`<b>Tobi:</b> You've squashed <b>${state.bugKills||0}/25</b> Bugs. Keep at it, ranger.`,"sys");}
+    else if(!(state.granted&&state.granted.foundersRustBlade)){state.granted=state.granted||{};state.granted.foundersRustBlade=1;addItem("foundersRustBlade",1);questProgress("bugs");log("<b>Tobi:</b> 25 Bugs squashed! As promised — the <b>Founder's Rust Blade</b>. Equip it from your inventory.","gold");}
+    else{log("<b>Tobi:</b> Go arm the rebels, champion.","sys");}}}
 function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
   if(pending.kind==="monster"&&ref.dead){pending=null;return;}
   if(p.path&&p.path.length)return;
@@ -457,13 +482,14 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     if(w.selfDmg){p.hp-=w.selfDmg;hitsplat(p.px,p.py-4,w.selfDmg,"#a11");}
     m.hp-=dmg;m.flash=8;hitsplat(m.px,m.py,dmg,crit?"#ffd166":"#c8342f");
     if(p.hp<=0){die();return;}
-    if(m.hp<=0){m.dead=true;m.respawnAt=now+300000;m.aggro=false;pending=null;gainXp("selling",d.xp);
+    if(m.hp<=0){m.dead=true;m.respawnAt=now+(m.type==="bug"?12000:300000);m.aggro=false;pending=null;gainXp("selling",d.xp);
       const find=(ITEM_DEFS[state.player.head]&&ITEM_DEFS[state.player.head].find)||1;state.gmv+=Math.round(d.gmv*find);
       hitsplat(m.px,m.py-14,"+"+Math.round(d.gmv*find),"#e8c46a");
       let msg=`You defeat the <b>${d.name}</b>. (+${d.xp} Checkout Combat xp, +${Math.round(d.gmv*find)} GMV)`;
       const dropChance=(d.boss?1:0.4)*find;
       if(d.drop&&Math.random()<dropChance){addItem(d.drop,1);msg+=` It drops a <b>${ITEM_DEFS[d.drop].name}</b>!`;}
       log(msg,d.boss?"gold":"good");
+      state.kills=(state.kills||0)+1;if(m.type==="bug")state.bugKills=(state.bugKills||0)+1;checkKillQuests();
       questProgress("firstSale");
       if(m.type==="dragon"){questProgress("churn");log("🏆 The Churn Dragon is slain! The Rebels rejoice.","gold");}
       if(m.type==="lich"){questProgress("deprecation");log("🏆 The Legacy Code Lich crumbles into deprecated dust.","gold");}
@@ -507,6 +533,8 @@ function worldTick(dt){const now=Date.now();
   for(const n of NPCS)npcTick(n,dt);
   if(state.buffs){for(const k in state.buffs){if(state.buffs[k]>0){state.buffs[k]-=dt;if(state.buffs[k]<=0){delete state.buffs[k];log("A buff wears off.","");}}}}
   if(companion.active){companionTick(dt);}
+  if(state.scout&&!scout.active){scout.active=true;scout.px=state.player.px-24;scout.py=state.player.py;}
+  if(scout.active){scoutTick(dt);}
   for(const m of monsters){
     if(m.dead){if(now>=m.respawnAt){m.dead=false;m.hp=m.maxHp;m.aggro=false;m.path=[];
       m.px=m.home.x*TILE+TILE/2;m.py=m.home.y*TILE+TILE/2;m.tx=m.home.x;m.ty=m.home.y;}continue;}
@@ -683,6 +711,15 @@ function drawMonster(m){const d=MT[m.type];const sx=SX(m.px),sy=SY(m.py);
     ctx.fillStyle="#dfe4ea";ctx.beginPath();ctx.arc(0,-R*0.7,R*0.38,0,7);ctx.fill();
     ctx.fillStyle="#111";ctx.beginPath();ctx.arc(-3,-R*0.72,1.5,0,7);ctx.arc(3,-R*0.72,1.5,0,7);ctx.fill();
     ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.moveTo(-7,-R*1.02);ctx.lineTo(-3.5,-R*0.86);ctx.lineTo(0,-R*1.02);ctx.lineTo(3.5,-R*0.86);ctx.lineTo(7,-R*1.02);ctx.lineTo(7,-R*0.9);ctx.lineTo(-7,-R*0.9);ctx.closePath();ctx.fill();}
+  else if(m.type==="bug"){ctx.strokeStyle="#3a4a1a";ctx.lineWidth=1.5;
+    for(let s=-1;s<=1;s+=2)for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(s*4,-2+i*4);ctx.lineTo(s*11,-5+i*5);ctx.stroke();}
+    ctx.fillStyle=d.col;ctx.beginPath();ctx.ellipse(0,0,7,9,0,0,7);ctx.fill();
+    ctx.fillStyle="#5a7a26";ctx.beginPath();ctx.ellipse(0,-4,6,5,0,0,7);ctx.fill();
+    ctx.fillStyle="#2f3f16";ctx.beginPath();ctx.arc(-2.5,1,1.4,0,7);ctx.arc(2.5,3,1.4,0,7);ctx.arc(1,-1,1.2,0,7);ctx.fill();
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(-2.5,-6,2,0,7);ctx.arc(2.5,-6,2,0,7);ctx.fill();
+    ctx.fillStyle="#111";ctx.beginPath();ctx.arc(-2.5,-6,1,0,7);ctx.arc(2.5,-6,1,0,7);ctx.fill();
+    ctx.strokeStyle="#3a4a1a";ctx.beginPath();ctx.moveTo(-2,-9);ctx.lineTo(-4,-13);ctx.moveTo(2,-9);ctx.lineTo(4,-13);ctx.stroke();
+    ctx.fillStyle="#3a4a1a";ctx.beginPath();ctx.arc(-4,-13,1.2,0,7);ctx.arc(4,-13,1.2,0,7);ctx.fill();}
   ctx.restore();hpbar(sx,sy-R-8,d.boss?64:30,m.hp/m.maxHp,d.boss?d.bossName:null);
   if(state.player.reveal){ctx.fillStyle="#cfe0c0";ctx.font="9px Trebuchet MS";ctx.textAlign="center";
     ctx.fillText(Math.ceil(m.hp)+"/"+m.maxHp+" · "+d.class,sx,sy-R-14);}}
@@ -690,6 +727,19 @@ function drawCompanion(){if(!companion.active)return;const sx=SX(companion.px),s
   shadow(sx,sy+8,7);const gr=ctx.createRadialGradient(sx,sy,0,sx,sy,9);gr.addColorStop(0,"#bfe0ff");gr.addColorStop(1,"rgba(110,168,255,0.1)");
   ctx.fillStyle=gr;ctx.beginPath();ctx.arc(sx,sy+Math.sin(t)*2,9,0,7);ctx.fill();
   ctx.fillStyle="#2a3a5a";ctx.beginPath();ctx.arc(sx-2,sy-1,1.4,0,7);ctx.arc(sx+2,sy-1,1.4,0,7);ctx.fill();}
+function drawScout(){if(!scout.active)return;const sx=SX(scout.px),sy=SY(scout.py);if(sx<-60||sx>VW+60)return;const f=scout.face||1;const t=Date.now()/140;
+  shadow(sx,sy+7,10);ctx.save();ctx.translate(sx,sy);
+  ctx.fillStyle="#8a5a30";ctx.beginPath();ctx.ellipse(0,0,10,6,0,0,7);ctx.fill(); // body
+  ctx.fillStyle="#6e4622";ctx.fillRect(-6,4,3,4);ctx.fillRect(3,4,3,4); // legs
+  ctx.strokeStyle="#6e4622";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-f*9,-2);ctx.lineTo(-f*13,-5-Math.sin(t)*2);ctx.stroke(); // tail wag
+  ctx.fillStyle="#8a5a30";ctx.beginPath();ctx.arc(f*9,-4,5,0,7);ctx.fill(); // head
+  ctx.fillStyle="#6e4622";ctx.beginPath();ctx.moveTo(f*6,-8);ctx.lineTo(f*5,-3);ctx.lineTo(f*9,-5);ctx.closePath();ctx.fill(); // ear
+  ctx.fillStyle="#3a2412";ctx.beginPath();ctx.arc(f*12,-3,1.4,0,7);ctx.fill(); // nose
+  ctx.fillStyle="#111";ctx.beginPath();ctx.arc(f*9,-5,1,0,7);ctx.fill(); // eye
+  ctx.fillStyle="#3a9e4a";ctx.beginPath();ctx.moveTo(f*3,0);ctx.lineTo(f*7,0);ctx.lineTo(f*6,3);ctx.lineTo(f*4,3);ctx.closePath();ctx.fill(); // green bandana
+  ctx.restore();
+  ctx.fillStyle="#e8c46a";ctx.font="bold 9px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
+  ctx.strokeText("Scout",sx,sy-14);ctx.fillText("Scout",sx,sy-14);}
 function drawNPC(n){const sx=SX(n.px),sy=SY(n.py);if(sx<-60||sx>VW+60||sy<-60||sy>VH+60)return;
   const moving=n.path&&n.path.length;const now=Date.now();
   const bob=moving?Math.abs(Math.sin(now/150+n.px))*2:Math.sin(now/520+n.px);
@@ -733,13 +783,23 @@ function drawCrate(c){const sx=SX(c.tx*TILE+TILE/2),sy=SY(c.ty*TILE+TILE/2);if(s
   ctx.beginPath();ctx.moveTo(sx-12,sy-12);ctx.lineTo(sx+12,sy+12);ctx.moveTo(sx+12,sy-12);ctx.lineTo(sx-12,sy+12);ctx.stroke();
   ctx.fillStyle="#96bf48";ctx.fillRect(sx-4,sy-4,8,8);}
 function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=SX(cx),sy=SY(cy);
-  if(o.type==="bank"||o.type==="store"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
-    ctx.fillStyle="rgba(0,0,0,0.25)";ctx.fillRect(px+6,py+h-4,w,8);
-    ctx.fillStyle=o.type==="bank"?"#b8944a":"#8a6f9a";ctx.fillRect(px,py+h*0.4,w,h*0.6);
-    ctx.fillStyle="#5a4630";ctx.beginPath();ctx.moveTo(px-4,py+h*0.42);ctx.lineTo(px+w/2,py-6);ctx.lineTo(px+w+4,py+h*0.42);ctx.closePath();ctx.fill();
-    ctx.fillStyle="#3a2c1a";ctx.fillRect(px+w/2-7,py+h-18,14,18);
-    ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";
-    ctx.strokeStyle="#000";ctx.lineWidth=3;const lbl=o.type==="bank"?"BANK":"SHOP";ctx.strokeText(lbl,px+w/2,py+h*0.4-3);ctx.fillText(lbl,px+w/2,py+h*0.4-3);return;}
+  if(o.type==="bank"||o.type==="store"||o.type==="hackhq"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
+    const wallY=py+h*0.42,wallH=h*0.58;
+    const wall={bank:"#c8a24a",store:"#8a6f9a",hackhq:"#4a7d8a"}[o.type];
+    const roof={bank:"#7a5a24",store:"#5a4630",hackhq:"#2f5560"}[o.type];
+    ctx.fillStyle="rgba(0,0,0,0.28)";ctx.fillRect(px+8,py+h-3,w-4,7);
+    ctx.fillStyle=wall;ctx.fillRect(px,wallY,w,wallH);
+    ctx.fillStyle="rgba(0,0,0,0.13)";ctx.fillRect(px,wallY,w,4);ctx.fillStyle="rgba(0,0,0,0.10)";ctx.fillRect(px,wallY+wallH-4,w,4);
+    ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(px-6,wallY+2);ctx.lineTo(px+w/2,py-9);ctx.lineTo(px+w+6,wallY+2);ctx.closePath();ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,0.09)";ctx.beginPath();ctx.moveTo(px+w/2,py-9);ctx.lineTo(px+w+6,wallY+2);ctx.lineTo(px+w/2,wallY+2);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2,py-9,2,0,7);ctx.fill(); // roof finial
+    ctx.fillStyle="#2a2016";for(const wx of [px+w*0.22,px+w*0.78]){ctx.fillRect(wx-5,wallY+9,10,10);ctx.fillStyle="#7ad0ff";ctx.fillRect(wx-4,wallY+10,8,8);ctx.fillStyle="#2a2016";ctx.fillRect(wx-1,wallY+10,2,8);ctx.fillRect(wx-4,wallY+13,8,2);}
+    ctx.fillStyle="#3a2c1a";ctx.fillRect(px+w/2-7,py+h-16,14,16);ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2+3,py+h-8,1.3,0,7);ctx.fill();
+    if(o.type==="store"){ctx.fillStyle="#c8342f";for(let i=0;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);ctx.fillStyle="#e8e2d2";for(let i=6;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);}
+    if(o.type==="hackhq"){ctx.fillStyle="#e8d24a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.fillText("</>",px+w/2,wallY+wallH-6);}
+    ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
+    const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ"}[o.type];
+    ctx.strokeText(lbl,px+w/2,wallY-4);ctx.fillText(lbl,px+w/2,wallY-4);return;}
   if(sx<-60||sx>VW+60||sy<-60||sy>VH+60)return;
   if(o.type==="tree"){shadow(sx,sy-2,15);
     if(o.felled){ctx.fillStyle="#5b3f22";ctx.beginPath();ctx.ellipse(sx,sy-3,8,4,0,0,7);ctx.fill();
@@ -822,13 +882,17 @@ function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
 function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled=false;
   ctx.drawImage(tbuf,cam.x,cam.y,VW,VH,0,0,VW,VH);ctx.imageSmoothingEnabled=true;
   drawWater();drawMarker();
-  const list=[];for(const o of objects)list.push({y:(o.type==="bank"||o.type==="store")?(o.ty+o.h)*TILE:(o.ty+1)*TILE,d:()=>drawObject(o)});
+  const list=[];for(const o of objects)list.push({y:(o.type==="bank"||o.type==="store"||o.type==="hackhq")?(o.ty+o.h)*TILE:(o.ty+1)*TILE,d:()=>drawObject(o)});
   for(const c of crates)list.push({y:(c.ty+1)*TILE,d:()=>drawCrate(c)});
   for(const n of NPCS)list.push({y:n.py+15,d:()=>drawNPC(n)});
   for(const m of monsters){if(m.dead)continue;list.push({y:(m.ty+1)*TILE,d:()=>drawMonster(m)});}
   const p=state.player;list.push({y:p.py+15,d:()=>drawPlayer(p)});
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
-  drawCompanion();drawFX();drawCurse();drawHUD();drawMinimap();}
+  drawCompanion();drawScout();drawPlayerSay();drawFX();drawCurse();drawHUD();drawMinimap();}
+function drawPlayerSay(){const p=state.player;if(!(p.chatUntil>Date.now()))return;const sx=SX(p.px),sy=SY(p.py)-44;
+  ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";const w=ctx.measureText(p.chatText).width+14;
+  ctx.fillStyle="rgba(20,17,11,0.9)";roundRect(sx-w/2,sy-14,w,20,5);ctx.fill();ctx.strokeStyle="#e8c46a";ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle="#fff";ctx.fillText(p.chatText,sx,sy);}
 function drawCurse(){if(!(state.player.curseUntil>Date.now()))return;const cx=VW/2,cy=VH/2;
   const g=ctx.createRadialGradient(cx,cy,55,cx,cy,190);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,0.95)");
   ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
@@ -840,6 +904,13 @@ function drawCurse(){if(!(state.player.curseUntil>Date.now()))return;const cx=VW
 const chatEl=document.getElementById("chat");
 function log(html,cls=""){const d=document.createElement("div");d.className="l "+cls;d.innerHTML=html;
   chatEl.appendChild(d);chatEl.scrollTop=chatEl.scrollHeight;while(chatEl.children.length>80)chatEl.removeChild(chatEl.firstChild);}
+// Public chat — typed messages appear in the log + as a speech bubble over your hero.
+// (Designed for a future real-time MMO where these broadcast to other players.)
+const chatInput=document.getElementById("chat-input");
+chatInput.addEventListener("keydown",e=>{if(e.key!=="Enter")return;const v=chatInput.value.trim();chatInput.value="";
+  if(!v||!state)return;const nm=CHARS[state.player.char]?CHARS[state.player.char].name:"You";
+  log(`<b>${nm}:</b> ${v.replace(/[<>]/g,"")}`,"say");
+  state.player.chatText=v.slice(0,60);state.player.chatUntil=Date.now()+4500;});
 document.querySelectorAll(".osrs-tab").forEach(t=>t.addEventListener("click",()=>{
   if(t.classList.contains("dis")){log(`The <b>${t.title}</b> panel isn't available in Shopscape yet.`,"");return;}
   const panel=document.getElementById("panel-"+t.dataset.tab);if(!panel)return;
@@ -887,8 +958,11 @@ function renderUI(){
     `<div>Total Armour: <b>+${equipDef()} def</b></div>`+
     `<div>Health: <b>${Math.ceil(state.player.hp)}/${state.player.maxHp}</b></div>`;
   if(questsEl){questsEl.innerHTML=QUESTS.map(q=>{const done=state.quests&&state.quests[q.id];
-    return `<div class="skill"><div class="skill-top"><span class="name">${done?"✔ ":""}${q.name}</span>`+
-      `<span class="lvl" style="color:${done?"#8ce39a":"#b7a988"}">${done?"Done":"Active"}</span></div>`+
+    const started=!q.fromTobi||(state.quests&&state.quests.bugsStarted);
+    const status=done?"Done":(started?"Active":"Not started");
+    const prog=(q.count&&started&&!done)?` — ${Math.min(q.count(),q.goal)}/${q.goal}`:"";
+    return `<div class="skill"><div class="skill-top"><span class="name">${done?"✔ ":""}${q.name}${prog}</span>`+
+      `<span class="lvl" style="color:${done?"#8ce39a":started?"#e8c46a":"#7a6a4a"}">${status}</span></div>`+
       `<div class="xp-sub">${q.desc}</div></div>`;}).join("");}
   if(equipEl){const slots=[["weapon","Weapon"],["shield","Shield"],["head","Head"],["body","Body"],["legs","Legs"],["hands","Hands"]];
     equipEl.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:11px;margin-bottom:8px">Worn Equipment</div>`+
@@ -906,12 +980,29 @@ const SHOP_STOCK=["elixir","nrr","portalStone","spyglass","launchpad","discountS
   "snowboard","buyButtonBludgeon","barcodeBlaster","discountDagger","queryLance","webhookWhip",
   "liquidLeather","fraudFilter","gdprGauntlets","oxygenGreaves","trustBattery","polarisPlate",
   "checkoutCleaver","shopPaySaber","monolith"];
+const CRAFT=[
+  {out:"elixir",cost:{rawGoods:2}},
+  {out:"cookedFish",cost:{rawFish:1,logs:1}},
+  {out:"buyButtonBludgeon",cost:{logs:2,ore:2}},
+  {out:"barcodeBlaster",cost:{ore:4}},
+  {out:"liquidLeather",cost:{rawGoods:5,logs:2}},
+  {out:"nrr",cost:{loyalty:1,rawGoods:3}},
+  {out:"queryLance",cost:{ore:5,loyalty:1}},
+  {out:"checkoutCleaver",cost:{ore:8,logs:4,loyalty:2}},
+];
 function openBuilding(kind){inBuilding=kind;state.player.path=[];modalEl.classList.add("show");renderModal();
-  log(kind==="bank"?"You step into the Merchant Bank.":"You step into the General Store.","sys");}
-function mrow(nm,price,fn,label){return `<div class="mrow"><span class="nm">${nm}</span>`+
-  (price?`<span class="price">${price}</span>`:"")+`<button onclick="${fn}">${label}</button></div>`;}
+  log(kind==="bank"?"You step into The Vault.":kind==="hackhq"?"You enter Hack Days HQ — time to build!":"You step into the General Store.","sys");}
+function mrow(nm,price,fn,label,dis){return `<div class="mrow"><span class="nm">${nm}</span>`+
+  (price?`<span class="price">${price}</span>`:"")+`<button onclick="${fn}"${dis?" style='opacity:.45'":""}>${label}</button></div>`;}
 function renderModal(){if(!inBuilding)return;modalGmv.textContent=Math.floor(state.gmv).toLocaleString()+" 🪙";
   const inv=Object.entries(state.inv).filter(e=>e[1]>0);
+  if(inBuilding==="hackhq"){modalTitle.textContent="Hack Days HQ";
+    let html=`<div class="mcol" style="grid-column:1/3"><h4>Craft new items from resources you've collected</h4>`;
+    CRAFT.forEach((r,i)=>{const it=ITEM_DEFS[r.out];
+      const costStr=Object.keys(r.cost).map(k=>r.cost[k]+"× "+(ITEM_DEFS[k]?ITEM_DEFS[k].glyph+" "+ITEM_DEFS[k].name:k)).join(", ");
+      const can=Object.keys(r.cost).every(k=>(state.inv[k]||0)>=r.cost[k]);
+      html+=`<div class="mrow"><span class="nm">${it.glyph} <b>${it.name}</b><br><span style="color:#b7a988;font-size:11px">needs ${costStr}</span></span><button onclick="craftItem(${i})"${can?"":" style='opacity:.45'"}>Craft</button></div>`;});
+    html+=`</div>`;modalBody.innerHTML=html;return;}
   if(inBuilding==="store"){modalTitle.textContent="General Store";
     let buy=`<div class="mcol"><h4>Buy</h4>`;
     for(const k of SHOP_STOCK){const it=ITEM_DEFS[k];buy+=mrow(it.glyph+" "+it.name,it.buy+" 🪙",`buyItem('${k}')`,"Buy");}buy+=`</div>`;
@@ -919,7 +1010,7 @@ function renderModal(){if(!inBuilding)return;modalGmv.textContent=Math.floor(sta
     if(!sellable.length)sell+=`<div class="mempty">Nothing to sell.</div>`;
     for(const [k,v] of sellable){const it=ITEM_DEFS[k];sell+=mrow(it.glyph+" "+it.name+" x"+v,it.sell+" 🪙",`sellItem('${k}')`,"Sell");}sell+=`</div>`;
     modalBody.innerHTML=buy+sell;}
-  else{modalTitle.textContent="Merchant Bank";
+  else{modalTitle.textContent="The Vault";
     let col1=`<div class="mcol"><h4>Your Inventory</h4>`;if(!inv.length)col1+=`<div class="mempty">Inventory empty.</div>`;
     for(const [k,v] of inv){const it=ITEM_DEFS[k]||{glyph:"?",name:k};col1+=mrow(it.glyph+" "+it.name+" x"+v,"",`deposit('${k}')`,"Deposit");}col1+=`</div>`;
     let col2=`<div class="mcol"><h4>Bank Vault</h4>`;const bent=Object.entries(state.bank||{}).filter(e=>e[1]>0);
@@ -950,7 +1041,9 @@ function useSlot(k){const it=ITEM_DEFS[k];if(!it||!(state.inv[k]>0))return;
   else if(it.buff){state.buffs=state.buffs||{};state.inv[k]--;
     if(it.buff==="discount"){const g=40+Math.floor(Math.random()*40);state.gmv+=g;log(`A horde of customers arrives — +${g} GMV (margin be damned)!`,"good");}
     else{state.buffs[it.buff]=20000;log(`You feel the <b>${it.name}</b> take effect.`,"good");}}}
-window.buyItem=buyItem;window.sellItem=sellItem;window.deposit=deposit;window.withdraw=withdraw;
+function craftItem(i){const r=CRAFT[i];for(const k in r.cost)if((state.inv[k]||0)<r.cost[k]){log("Not enough resources to craft that.","bad");return;}
+  for(const k in r.cost)state.inv[k]-=r.cost[k];addItem(r.out,1);log(`You craft a <b>${ITEM_DEFS[r.out].name}</b> at Hack Days HQ!`,"good");renderModal();}
+window.buyItem=buyItem;window.sellItem=sellItem;window.deposit=deposit;window.withdraw=withdraw;window.craftItem=craftItem;
 // ===== item tooltips =====
 const tipEl=document.getElementById("tooltip");
 function spdLabel(ms){return !ms?"—":ms<450?"Fast":ms<=650?"Medium":"Slow";}
@@ -973,13 +1066,14 @@ function hideTip(){tipEl.style.display="none";}
 function save(){if(!state)return;try{const p=state.player;localStorage.setItem("shopscape",JSON.stringify({
   player:{px:p.px,py:p.py,hp:p.hp,maxHp:p.maxHp,face:p.face,char:p.char,weapon:p.weapon,shield:p.shield,
     head:p.head||null,body:p.body||null,legs:p.legs||null,hands:p.hands||null,reveal:!!p.reveal},
-  skills:state.skills,inv:state.inv,gmv:state.gmv,bank:state.bank||{},quests:state.quests||{},granted:state.granted||{},dialogIdx}));}catch(e){}}
+  skills:state.skills,inv:state.inv,gmv:state.gmv,bank:state.bank||{},quests:state.quests||{},granted:state.granted||{},
+  kills:state.kills||0,bugKills:state.bugKills||0,scout:!!state.scout,dialogIdx}));}catch(e){}}
 function load(){try{const r=localStorage.getItem("shopscape");if(!r)return null;const o=JSON.parse(r);
   if(!o.player||!o.player.char)return null;dialogIdx=o.dialogIdx||{};const pl=o.player;
   return{player:{px:pl.px,py:pl.py,hp:pl.hp,maxHp:pl.maxHp,path:[],anim:0,face:pl.face||1,atkAnim:0,
     char:pl.char,weapon:pl.weapon,shield:pl.shield,head:pl.head||null,body:pl.body||null,legs:pl.legs||null,hands:pl.hands||null,reveal:!!pl.reveal},
     skills:o.skills||{selling:{xp:0},sourcing:{xp:0},mining:{xp:0}},inv:o.inv||{},gmv:o.gmv||0,bank:o.bank||{},
-    quests:o.quests||{},granted:o.granted||{},buffs:{}};}catch(e){return null;}}
+    quests:o.quests||{},granted:o.granted||{},buffs:{},kills:o.kills||0,bugKills:o.bugKills||0,scout:!!o.scout};}catch(e){return null;}}
 setInterval(save,4000);window.addEventListener("beforeunload",save);
 // ============================================================ MAIN LOOP
 let last=performance.now(),uiT=0;
