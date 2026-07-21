@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shopscape</title>
+<link rel="stylesheet" href="src/shopscape.css" />
+</head>
+<body>
+<div id="app">
+  <div id="game-wrap"><canvas id="game"></canvas>
+    <div id="overlay"><h1>SHOPSCAPE</h1><p class="sub">Choose your merchant hero — you can pick only one</p>
+      <div id="charcards"></div></div>
+    <div id="modal"><div id="modalbox">
+      <div id="modalhead"><h2 id="modaltitle">Shop</h2><div class="right"><span id="modalgmv"></span><button id="modalclose">Close</button></div></div>
+      <div id="modalbody"></div></div></div>
+  </div>
+  <div id="side">
+    <div id="tabs">
+      <div class="tab active" data-tab="inv">Inventory</div>
+      <div class="tab" data-tab="skills">Skills</div>
+      <div class="tab" data-tab="combat">Gear</div>
+      <div class="tab" data-tab="quests">Quests</div>
+    </div>
+    <div class="panel active" id="panel-inv"><div id="inv-grid"></div>
+      <button id="reset-btn">Start a new store (wipe save)</button></div>
+    <div class="panel" id="panel-skills"><div id="skills"></div></div>
+    <div class="panel" id="panel-combat"><div id="combat-info"></div></div>
+    <div class="panel" id="panel-quests"><div id="quests-log"></div></div>
+  </div>
+  <div id="chat-wrap"><div id="chat"></div></div>
+</div>
+<div id="tooltip"></div>
+<script src="src/shopscape.js"></script>
+</body>
+</html>
