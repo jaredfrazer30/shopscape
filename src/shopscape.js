@@ -12,6 +12,17 @@ const GC={
 const MINI={[T.GRASS]:"#3a5a2a",[T.GRASS2]:"#32502a",[T.DIRT]:"#6b563b",[T.WATER]:"#2f6b8f",
   [T.SAND]:"#b0a06a",[T.COBBLE]:"#7a7a80",[T.BRIDGE]:"#6b4a2f",[T.FLOOR]:"#8a8078",[T.SWAMP]:"#2f6b5a",
   [T.SNOW]:"#dfe6ee",[T.ICE]:"#a9cbe0",[T.PAVE]:"#5c5e64"};
+// New York City row-house styles — each building picks one for variety
+const CITY_STYLES=[
+  {wall:"#8a4a30",roof:"#3a2418",trim:"#d8a878",peak:false},
+  {wall:"#b04638",roof:"#5a2018",trim:"#e8c46a",peak:true},
+  {wall:"#3a6a9a",roof:"#22364a",trim:"#cfe0ff",peak:false},
+  {wall:"#2f8f7a",roof:"#1c4a40",trim:"#d6f0e6",peak:true},
+  {wall:"#d8c89a",roof:"#8a6a3a",trim:"#7a5a2a",peak:false},
+  {wall:"#6a4a8a",roof:"#3a2a52",trim:"#e0c8ff",peak:true},
+  {wall:"#4a7d4a",roof:"#2a4a2a",trim:"#cfe8c0",peak:false},
+  {wall:"#9aa0a8",roof:"#4a5058",trim:"#dfe4ea",peak:true},
+];
 // ---- seeded PRNG + value noise ----
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function makeNoise(seed,g=48){const r=mulberry32(seed);const grid=new Float32Array(g*g);for(let i=0;i<grid.length;i++)grid[i]=r();
@@ -47,7 +58,7 @@ function placeDeco(x,y,w,h,kind){ // decorative (non-enterable) structure that b
   for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))blockObj[j][i]=1;
   objects.push({type:kind,tx:x,ty:y,w,h});
 }
-const BUILDINGS=new Set(["bank","store","hackhq","supply","sky","cabin","tower"]);
+const BUILDINGS=new Set(["bank","store","hackhq","supply","sky","cabin","tower","cityhouse"]);
 function nearBuilding(tx,ty,m){for(const o of objects){if(o.w&&BUILDINGS.has(o.type)&&tx>=o.tx-m&&tx<o.tx+o.w+m&&ty>=o.ty-m&&ty<o.ty+o.h+m)return true;}return false;}
 function genWorld(){
   map=[];blockObj=[];objects=[];
@@ -82,11 +93,12 @@ function genWorld(){
   placeDeco(78,7,3,5,"tower");
   placeBuilding(83,9,4,3,"supply",1,3);
   placeDeco(70,17,3,2,"cabin");placeDeco(89,18,3,2,"cabin");
-  // New York City: structured skyscraper block grid (main avenues at x48/49 & y38/39 stay clear)
-  (function(){const c=regionByName("New York City");
-    for(let by=c.y+2;by+4<=c.y+c.h-2;by+=6)for(let bx=c.x+2;bx+4<=c.x+c.w-2;bx+=6){
-      if(bx<50&&bx+4>48)continue; if(by<40&&by+4>38)continue;
-      placeDeco(bx,by,4,4,"sky");}})();
+  // New York City: fewer, standard-size, uniquely-styled row houses (leaves plenty of walkable street)
+  (function(){const c=regionByName("New York City");let vi=0;
+    for(let by=c.y+3;by+3<=c.y+c.h-3;by+=8)for(let bx=c.x+3;bx+3<=c.x+c.w-3;bx+=8){
+      if(bx<50&&bx+3>48)continue; if(by<40&&by+3>38)continue; // keep the main avenues clear
+      for(let j=by;j<by+3;j++)for(let i=bx;i<bx+3;i++)if(inb(i,j))blockObj[j][i]=1;
+      objects.push({type:"cityhouse",tx:bx,ty:by,w:3,h:3,v:(vi++)%CITY_STYLES.length});}})();
   // object scatter
   const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;const t=map[ty][tx];
     if(t===T.WATER||t===T.SWAMP||t===T.DIRT||t===T.BRIDGE||blockObj[ty][tx])return;
@@ -183,7 +195,7 @@ function buildTerrain(){
     else if(o.type==="snowman"){mg.fillStyle="#eef";mg.fillRect(o.tx,o.ty,1,1);}
     else if(o.type==="bank"||o.type==="store"||o.type==="hackhq"||o.type==="cabin"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
     else if(o.type==="supply"){mg.fillStyle="#5aa06a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
-    else if(o.type==="sky"){mg.fillStyle="#7f93b8";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
+    else if(o.type==="sky"||o.type==="cityhouse"){mg.fillStyle="#9a7fb0";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
     else if(o.type==="tower"){mg.fillStyle="#d0d4dc";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
 }
 buildTerrain();
@@ -560,7 +572,9 @@ function talk(n){const i=(dialogIdx[n.name]||0)%n.lines.length;log(`<b>${n.name}
   if(n.grant){state.granted=state.granted||{};if(!state.granted[n.grant]){state.granted[n.grant]=1;addItem(n.grant,1);
     log(`You receive the <b>${ITEM_DEFS[n.grant].name}</b>! ${ITEM_DEFS[n.grant].kind?"Equip it":"Use it"} from your inventory.`,"gold");}}
   if(n.give&&(state.inv[n.give]||0)<1){addItem(n.give,1);log(`The CSM hands you a <b>${ITEM_DEFS[n.give].name}</b>.`,"good");}
-  if(n.spawn){const cnt=monsters.filter(m=>m.type===n.spawn&&!m.dead).length;if(cnt<6){spawnMonster(n.spawn,n.tx+1,n.ty+1);log("An <b>Openclaw</b> skitters out to test you! 🦞","bad");}}
+  if(n.spawn){const cnt=monsters.filter(m=>m.type===n.spawn&&!m.dead).length;if(cnt<6){
+    const pt=pxTile(state.player.px,state.player.py);const dx=Math.sign(n.tx-pt.x)||1,dy=Math.sign(n.ty-pt.y)||1;
+    spawnMonster(n.spawn,n.tx+dx*7,n.ty+dy*7);log("Somewhere in the city, an <b>Openclaw</b> skitters out to test you! 🦞","bad");}}
   if(n.bugGiver){state.quests=state.quests||{};
     if(!state.quests.bugsStarted){state.quests.bugsStarted=true;log("<b>Tobi:</b> Here's the deal — squash <b>25 Bugs</b> and the Founder's Rust Blade is yours.","gold");}
     else if((state.bugKills||0)<25){log(`<b>Tobi:</b> You've squashed <b>${state.bugKills||0}/25</b> Bugs. Keep at it, ranger.`,"sys");}
@@ -998,6 +1012,20 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
     const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ",supply:"SHOPIFY SUPPLY"}[o.type];
     ctx.strokeText(lbl,px+w/2,wallY-4);ctx.fillText(lbl,px+w/2,wallY-4);return;}
+  if(o.type==="cityhouse"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;const st=CITY_STYLES[o.v||0];
+    const wallTop=py+h*0.26,wallH=h-(wallTop-py);
+    ctx.fillStyle="rgba(0,0,0,0.28)";ctx.fillRect(px+6,py+h-3,w-4,7);
+    ctx.fillStyle=st.wall;ctx.fillRect(px,wallTop,w,wallH);
+    ctx.fillStyle="rgba(255,255,255,0.08)";ctx.fillRect(px,wallTop,w,4);
+    if(st.peak){ctx.fillStyle=st.roof;ctx.beginPath();ctx.moveTo(px-4,wallTop+2);ctx.lineTo(px+w/2,py-2);ctx.lineTo(px+w+4,wallTop+2);ctx.closePath();ctx.fill();
+      ctx.fillStyle=st.trim;ctx.beginPath();ctx.arc(px+w/2,py-2,2,0,7);ctx.fill();}
+    else{ctx.fillStyle=st.roof;ctx.fillRect(px-3,wallTop-9,w+6,11);ctx.fillStyle=st.trim;ctx.fillRect(px-3,wallTop-2,w+6,2);}
+    const ww=w*0.22,wh=wallH*0.26;
+    for(let r=0;r<2;r++)for(let cc=0;cc<2;cc++){const wx=px+w*(cc?0.72:0.28),wy=wallTop+wallH*(r?0.46:0.14);
+      ctx.fillStyle=st.roof;ctx.fillRect(wx-ww/2-2,wy-2,ww+4,wh+4);ctx.fillStyle="#9fd0ff";ctx.fillRect(wx-ww/2,wy,ww,wh);
+      ctx.fillStyle=st.roof;ctx.fillRect(wx-1,wy,2,wh);ctx.fillRect(wx-ww/2,wy+wh/2-1,ww,2);}
+    const dw=Math.max(18,w*0.22),dh=wallH*0.34;ctx.fillStyle=st.trim;ctx.fillRect(px+w/2-dw/2-2,py+h-dh-2,dw+4,dh+2);
+    ctx.fillStyle="#2a1c10";ctx.fillRect(px+w/2-dw/2,py+h-dh,dw,dh);ctx.fillStyle=st.trim;ctx.beginPath();ctx.arc(px+w/2+dw/2-4,py+h-dh/2,2,0,7);ctx.fill();return;}
   if(o.type==="tower"||o.type==="cabin"||o.type==="sky"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
     if(o.type==="tower"){const cx=px+w/2,baseY=py+h,topY=py-h*3.2;const podY=topY+(baseY-topY)*0.34;
       ctx.fillStyle="rgba(0,0,0,0.3)";ctx.beginPath();ctx.ellipse(cx,baseY,w*0.55,7,0,0,7);ctx.fill();
