@@ -13,12 +13,15 @@
     box-shadow:inset 0 0 0 2px #7a6647,inset 0 0 0 4px #241d14;}
   canvas#game{display:block;width:100%;height:100%;cursor:pointer;}
   /* Right nav — OSRS layout: minimap on top, tabbed panel below */
-  #side{grid-area:side;display:flex;flex-direction:column;gap:5px;min-height:0;}
-  #map-panel{position:relative;height:200px;flex:none;background:linear-gradient(#5a4c39,#3b3227);
+  #side{grid-area:side;display:flex;flex-direction:column;gap:12px;min-height:0;}
+  #map-panel{position:relative;height:206px;flex:none;background:linear-gradient(#5a4c39,#3b3227);
     border:3px solid #0e0a05;border-radius:7px;overflow:hidden;box-shadow:inset 0 0 0 2px #7a6647,inset 0 0 0 4px #241d14;}
-  #minimap{display:block;width:100%;height:200px;}
-  #side-inner{flex:1;display:flex;flex-direction:column;min-height:0;background:linear-gradient(#4a3f2e,#3b3227);
+  #minimap{display:block;width:100%;height:206px;}
+  #side-inner{flex:1;position:relative;display:flex;flex-direction:column;min-height:0;background:linear-gradient(#4a3f2e,#3b3227);
     border:3px solid #0e0a05;border-radius:7px;overflow:hidden;box-shadow:inset 0 0 0 2px #7a6647,inset 0 0 0 4px #241d14;}
+  #logout-menu{position:absolute;right:6px;bottom:46px;display:none;z-index:14;background:linear-gradient(#4a3f2e,#2b241b);
+    border:2px solid #000;border-radius:6px;padding:6px;box-shadow:0 5px 14px rgba(0,0,0,.6);}
+  #logout-menu.show{display:block;}
   .tabrow{display:flex;background:#2b241b;border-bottom:2px solid #000;}
   .tabrow.bot{border-bottom:none;border-top:2px solid #000;}
   .osrs-tab{flex:1;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;
@@ -47,8 +50,9 @@
   .xp-sub{font-size:10px;color:var(--muted);margin-top:2px;}
   #combat-info{font-size:12px;line-height:1.7;color:var(--ink);}
   #combat-info b{color:var(--gold);}
-  #reset-btn{width:100%;margin-top:10px;padding:7px;background:#2b241b;color:var(--muted);
-    border:1px solid #000;border-radius:5px;cursor:pointer;font-size:11px;}
+  #reset-btn{padding:8px 12px;background:#5a2320;color:#fff;border:1px solid #000;border-radius:5px;
+    cursor:pointer;font-size:12px;white-space:nowrap;}
+  #reset-btn:hover{background:#6e2a26;}
   /* Chatbox — OSRS parchment */
   #chat-wrap{grid-area:chat;background:#3b3227;border:3px solid #0e0a05;border-radius:7px;padding:6px;display:flex;flex-direction:column;
     box-shadow:inset 0 0 0 2px #7a6647,inset 0 0 0 4px #241d14;}

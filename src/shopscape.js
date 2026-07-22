@@ -314,7 +314,14 @@ const ITEM_DEFS={
   // ---- explosive ranged weapons ----
   slopGrenade:{name:"Slop Grenade",glyph:"💣",kind:"weapon",atk:9,spd:900,tier:"Advanced",ranged:true,range:5,aoe:1.7,orb:"bomb",strongVs:["physical","undead"],weakVs:[],sell:220,buy:560,desc:"A lobbed bomb that detonates on impact — damages everything near the blast."},
   molotovSloptail:{name:"Molotov Sloptail",glyph:"🍾",kind:"weapon",atk:8,spd:820,tier:"Advanced",ranged:true,range:5,aoe:1.7,orb:"fire",strongVs:["beast","ghost"],weakVs:[],sell:200,buy:520,desc:"A flaming bottle that bursts into an explosion — splashes fiery damage around the target."},
+  // ---- Sidekick's signature gear ----
+  longbow:{name:"Longbow",glyph:"🏹",kind:"weapon",atk:7,spd:620,tier:"Advanced",ranged:true,range:6,orb:"arrow",strongVs:["beast","undead"],weakVs:[],sell:150,desc:"An elegant bow that executes queries with precision — fires arrows at range."},
+  snowdevilShield:{name:"SnowDevil Shield",glyph:"🛡️",kind:"shield",def:6,sell:120,desc:"The OG order of protection — built for speed, built to last."},
 };
+// worn-armor colors so equipped gear shows on the character
+const ARM_COL={dawnRobes:"#8a7a5a",liquidLeather:"#2f8f7a",polarisPlate:"#c0c6d0",trustBattery:"#3aa84a",emperorArmor:"#c7ccd4",
+  fraudFilter:"#3a3f4a",primeCrown:"#3a6ad0",motyCrown:"#e8c46a",gdprGauntlets:"#5a6a8a",oxygenGreaves:"#cfe0ff",
+  touchGrassHat:"#4fae5a",rebellionJersey:"#eef2f6",gymsharkHoodie:"#7a7f88",aloPants:"#4fae5a"};
 // playable characters — appearance handled in drawCharacter(), attack style in drawCharacter()/combat
 const CHARS={
   river:{name:"River",weapon:"waterStaff",shield:"blastShield",body:"dawnRobes",atk:"cast",
@@ -323,6 +330,8 @@ const CHARS={
     blurb:"Our tried and true mascot, and a true OG in the scene - internationally known and locally respected, this green bag needs no introduction."},
   shoppington:{name:"Lord Shoppington",weapon:"fancyCane",shield:"trillionShield",body:"dawnRobes",atk:"poke",
     blurb:"Some say he was born with money, others say he's self-made...All I know is this bag will give you one trillion reasons to love him!"},
+  sidekick:{name:"Sidekick",weapon:"longbow",shield:"snowdevilShield",body:"dawnRobes",atk:"cast",
+    blurb:"Queries from the rich and gives to the poor — designed to meet all your automation needs."},
 };
 const MT={
   cart:{name:"Abandoned Cart",class:"physical",hp:14,dmg:2,xp:24,gmv:6,respawn:6,drop:null,r:15,col:"#9aa3ad",spd:155,aggro:3,style:"ram"},
@@ -464,6 +473,10 @@ let orbs=[];
 function spawnOrb(x,y,tx,ty,kind){orbs.push({x,y,tx,ty,t:0,kind:kind||"water"});}
 function updateOrbs(dt){for(const o of orbs)o.t+=dt/200;orbs=orbs.filter(o=>o.t<1.05);}
 function drawOrbs(){for(const o of orbs){const x=o.x+(o.tx-o.x)*o.t,y=o.y+(o.ty-o.y)*o.t-Math.sin(o.t*Math.PI)*10;const sx=SX(x),sy=SY(y);
+  if(o.kind==="arrow"){const ang=Math.atan2(o.ty-o.y,o.tx-o.x);ctx.save();ctx.translate(sx,sy);ctx.rotate(ang);
+    ctx.strokeStyle="#c8b088";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(6,0);ctx.stroke();
+    ctx.fillStyle="#e6e6e6";ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(4,-2.5);ctx.lineTo(4,2.5);ctx.closePath();ctx.fill();
+    ctx.strokeStyle="#7a3fd0";ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(-10,-2);ctx.moveTo(-7,0);ctx.lineTo(-10,2);ctx.stroke();ctx.restore();continue;}
   const pal=o.kind==="bomb"?["#a0a6ae","#333","rgba(40,40,40,0)","#c9ccd2"]:o.kind==="fire"?["#ffe6a0","#ff6a1a","rgba(255,120,30,0)","#ffd08a"]:["#eaf7ff","#4aa0e0","rgba(60,150,220,0)","#cfeaff"];
   const g=ctx.createRadialGradient(sx,sy,0,sx,sy,9);g.addColorStop(0,pal[0]);g.addColorStop(0.5,pal[1]);g.addColorStop(1,pal[2]);
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,9,0,7);ctx.fill();
@@ -711,6 +724,10 @@ function drawWeapon(g,key,hx,hy,face,ext,sw){g.save();
   else if(key==="molotovSloptail"){const gx=hx+face*(6+ext);g.fillStyle="#3a6a3a";g.fillRect(gx-2,hy-6,4,10);g.fillStyle="#2a4a2a";g.fillRect(gx-1.4,hy-10,2.8,4);
     g.fillStyle="#d8c090";g.fillRect(gx-2,hy-2,4,3);g.strokeStyle="#c8a020";g.lineWidth=1.5;g.beginPath();g.moveTo(gx,hy-10);g.lineTo(gx,hy-13);g.stroke();
     g.fillStyle="#ff7a2a";g.beginPath();g.arc(gx,hy-13,2,0,7);g.fill();g.fillStyle="#ffd08a";g.beginPath();g.arc(gx,hy-13,1,0,7);g.fill();}
+  else if(key==="longbow"){g.save();g.scale(face,1);const bx=Math.abs(hx)+2;g.strokeStyle="#6a4a2a";g.lineWidth=2.5;
+    g.beginPath();g.arc(bx,hy,11,-Math.PI*0.55,Math.PI*0.55);g.stroke();
+    g.strokeStyle="#e6e6e6";g.lineWidth=1;g.beginPath();g.moveTo(bx+Math.cos(-0.55*Math.PI)*11,hy+Math.sin(-0.55*Math.PI)*11);g.lineTo(bx+Math.cos(0.55*Math.PI)*11,hy+Math.sin(0.55*Math.PI)*11);g.stroke();
+    if(sw>0.2){g.strokeStyle="#8a5a2a";g.lineWidth=1.5;g.beginPath();g.moveTo(bx-4,hy);g.lineTo(bx+9+ext,hy);g.stroke();g.fillStyle="#ddd";g.beginPath();g.moveTo(bx+9+ext,hy);g.lineTo(bx+5+ext,hy-2);g.lineTo(bx+5+ext,hy+2);g.closePath();g.fill();}g.restore();}
   else{g.fillStyle="#888";g.fillRect(hx,hy-8,3,12);}
   g.restore();}
 function drawShield(g,key,sx,sy,face){g.save();const w=11,h=14;
@@ -721,6 +738,7 @@ function drawShield(g,key,sx,sy,face){g.save();const w=11,h=14;
   else if(key==="moneyShield"){body("#3a7d3a","#12300f");g.fillStyle="#e8c46a";g.font="bold 10px Trebuchet MS";g.textAlign="center";g.fillText("$",sx,sy+2);}
   else if(key==="trillionShield"){body("#d9b24a","#5a3f10");g.fillStyle="#fff6d6";g.beginPath();g.moveTo(sx,sy-5);g.lineTo(sx+4,sy-1);g.lineTo(sx,sy+4);g.lineTo(sx-4,sy-1);g.closePath();g.fill();
     g.fillStyle="#5a3f10";g.font="bold 6px Trebuchet MS";g.textAlign="center";g.fillText("1T",sx,sy+9);}
+  else if(key==="snowdevilShield"){body("#8fbfe0","#2a5a7a");g.fillStyle="#eef6ff";g.beginPath();g.moveTo(sx,sy-5);g.lineTo(sx-3,sy-1);g.lineTo(sx,sy+3);g.lineTo(sx+3,sy-1);g.closePath();g.fill();g.strokeStyle="#eef6ff";g.lineWidth=1;g.beginPath();g.moveTo(sx-4,sy-1);g.lineTo(sx+4,sy-1);g.stroke();}
   else{body("#8a8f98","#333");}
   g.restore();}
 // draws a character centered at origin (feet ~ +16). g already translated to screen pos.
@@ -760,6 +778,20 @@ function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-
     if(blink){g.fillStyle="#95bf47";g.fillRect(-6,-2.6,12,2.6);}
     drawShield(g,o.shield,-face*11,4,face);
     drawWeapon(g,o.weapon,face*9,2,face,sw*8,sw); // gloves punch
+  }else if(o.char==="sidekick"){
+    g.fillStyle="#1a1030";g.fillRect(-4+walk*2,8,4,9);g.fillRect(2-walk*2,8,4,9); // black boots/legs
+    const lean=sw*face*3;g.translate(lean,0);
+    g.fillStyle="#6a2fb0";g.beginPath();g.moveTo(-8,-6);g.lineTo(8,-6);g.lineTo(10,11);g.lineTo(-10,11);g.closePath();g.fill(); // purple tunic
+    g.fillStyle="#3a1a6a";g.fillRect(-10,7,20,3); // black-purple belt
+    g.fillStyle="#6a2fb0";g.beginPath();g.moveTo(-10,11);for(let i=0;i<5;i++){g.lineTo(-10+i*5+2.5,14);g.lineTo(-10+(i+1)*5,11);}g.closePath();g.fill(); // zigzag hem
+    g.fillStyle="#e8c9a8";g.beginPath();g.arc(0,-12,6,0,7);g.fill(); // head
+    g.fillStyle="#4a1f8a";g.beginPath();g.moveTo(-7,-14);g.lineTo(7,-14);g.lineTo(10,-18);g.closePath();g.fill();g.fillRect(-7,-15,14,2); // robin hood hat
+    g.strokeStyle="#e8d24a";g.lineWidth=2;g.beginPath();g.moveTo(8,-16);g.lineTo(13,-23);g.stroke(); // feather
+    g.fillStyle="#7a3fd0";g.fillRect(-6,-14,12,4); // PURPLE EYEMASK
+    g.fillStyle="#fff";g.beginPath();g.arc(-2.6,-12,1.7,0,7);g.arc(2.6,-12,1.7,0,7);g.fill();
+    g.fillStyle="#1a0f30";g.beginPath();g.arc(-2.6,-12,0.9,0,7);g.arc(2.6,-12,0.9,0,7);g.fill();
+    drawShield(g,o.shield,-face*10,2,face);
+    drawWeapon(g,o.weapon,face*8,-4,face,sw*4,sw);
   }else{ // shoppington
     g.fillStyle="#2a2a2a";g.fillRect(-5+walk*2,10,4,6);g.fillRect(1-walk*2,10,4,6);
     // kraft bag body
@@ -778,6 +810,12 @@ function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-
     drawShield(g,o.shield,-face*11,3,face);
     drawWeapon(g,o.weapon,face*8,0,face,sw*10,sw); // cane thrust
   }
+  // worn-armor overlays — equipped gear shows on the character
+  const ac=k=>k&&ARM_COL[k];
+  if(ac(o.body)){g.fillStyle=ac(o.body);g.beginPath();g.ellipse(-8,-4,3.6,3,0,0,7);g.ellipse(8,-4,3.6,3,0,0,7);g.fill();g.fillRect(-10,7,20,2.5);} // pauldrons + belt
+  if(ac(o.legs)){g.fillStyle=ac(o.legs);g.fillRect(-6,9,5,7);g.fillRect(1,9,5,7);} // greaves
+  if(ac(o.head)){g.fillStyle=ac(o.head);g.beginPath();g.arc(0,-15,6.5,Math.PI,0);g.fill();g.fillRect(-6.5,-15,13,2);} // helm/cap
+  if(ac(o.hands)){g.fillStyle=ac(o.hands);g.fillRect(face*7-2,-1,4,4);} // glove
   if(sw>0.32){g.save();g.scale(face,1);g.globalAlpha=sw*0.5;g.strokeStyle="#fff";g.lineWidth=2.5;g.beginPath();g.arc(6,-2,13,Math.PI*0.12,Math.PI*0.9);g.stroke();g.restore();} // weapon swing swoosh
   g.restore();}
 function playerHpBar(sx,sy){const p=state.player;if(p.hp>=p.maxHp&&!pending)return;const w=30,f=Math.max(0,Math.min(1,p.hp/p.maxHp)),yy=sy-30;
@@ -785,7 +823,7 @@ function playerHpBar(sx,sy){const p=state.player;if(p.hp>=p.maxHp&&!pending)retu
   ctx.fillStyle="#4fae5a";ctx.fillRect(sx-w/2,yy,w*f,4);}
 function drawPlayer(p){const sx=SX(p.px),sy=SY(p.py);
   ctx.save();ctx.translate(sx,sy);
-  drawCharacter(ctx,{char:p.char,weapon:p.weapon,shield:p.shield,face:p.face,
+  drawCharacter(ctx,{char:p.char,weapon:p.weapon,shield:p.shield,head:p.head,body:p.body,legs:p.legs,hands:p.hands,face:p.face,
     atkProg:p.atkAnim>0?p.atkAnim/ATK_FRAMES:0,moving:p.moving,anim:p.anim});
   ctx.restore();playerHpBar(sx,sy);}
 function drawMonster(m){const d=MT[m.type];const sx=SX(m.px),sy=SY(m.py);
@@ -1035,7 +1073,7 @@ function drawHpOrb(g,x,y){const p=state.player;g.save();g.translate(x,y);
   g.strokeStyle="#000";g.lineWidth=2;g.beginPath();g.arc(0,0,14,0,7);g.stroke();
   g.fillStyle="#fff";g.font="bold 11px Trebuchet MS";g.textAlign="center";g.strokeStyle="#000";g.lineWidth=3;
   g.strokeText(Math.max(0,Math.ceil(p.hp)),0,4);g.fillText(Math.max(0,Math.ceil(p.hp)),0,4);g.restore();}
-function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=H/2-4;const R=Math.min(W/2,H/2)-8;const p=state.player;
+function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=(H-22)/2;const R=Math.min(W/2,(H-22)/2)-6;const p=state.player;
   mmctx.clearRect(0,0,W,H);
   if(p.curseUntil>Date.now()){mmctx.fillStyle="#0a0a0a";mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.fill();
     mmctx.strokeStyle="#000";mmctx.lineWidth=4;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
@@ -1055,9 +1093,8 @@ function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=
   mmctx.strokeStyle="#7a6647";mmctx.lineWidth=2;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
   drawCompass(mmctx,15,15);
   drawHpOrb(mmctx,15,H-18);
-  const zn=curZone();mmctx.fillStyle="rgba(14,17,11,0.86)";mmctx.fillRect(0,H-20,W,20);
-  let fs=13;mmctx.font="bold "+fs+"px Trebuchet MS";while(mmctx.measureText(zn).width>W-14&&fs>8){fs--;mmctx.font="bold "+fs+"px Trebuchet MS";}
-  mmctx.fillStyle="#e8c46a";mmctx.textAlign="center";mmctx.fillText(zn,W/2,H-6);}
+  const zn=curZone();let fs=13;mmctx.font="bold "+fs+"px Trebuchet MS";while(mmctx.measureText(zn).width>W-14&&fs>8){fs--;mmctx.font="bold "+fs+"px Trebuchet MS";}
+  mmctx.textAlign="center";mmctx.lineWidth=3;mmctx.strokeStyle="#000";mmctx.strokeText(zn,W/2,H-6);mmctx.fillStyle="#e8c46a";mmctx.fillText(zn,W/2,H-6);}
 function curZone(){const t=pxTile(state.player.px,state.player.py);for(const z of ZONES)if(t.x>=z.x&&t.x<z.x+z.w&&t.y>=z.y&&t.y<z.y+z.h)return z.name;return "The Wilds";}
 function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
   ctx.fillStyle="rgba(10,12,15,0.72)";roundRect(x-5,y-5,w+10,h+10,7);ctx.fill();
@@ -1106,6 +1143,7 @@ document.querySelectorAll(".osrs-tab").forEach(t=>t.addEventListener("click",()=
   document.querySelectorAll("#tabrow-top .osrs-tab").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
   t.classList.add("active");panel.classList.add("active");}));
+document.getElementById("power-tab").addEventListener("click",()=>document.getElementById("logout-menu").classList.toggle("show"));
 document.getElementById("reset-btn").addEventListener("click",()=>{if(confirm("Wipe your store and start a new game?")){
   state=null;localStorage.removeItem("shopscape");location.reload();}}); // null state first so beforeunload save() is skipped
 const skillsEl=document.getElementById("skills"),invEl=document.getElementById("inv-grid"),combatEl=document.getElementById("combat-info"),questsEl=document.getElementById("quests-log"),equipEl=document.getElementById("equip-view");
