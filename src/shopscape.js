@@ -331,7 +331,7 @@ const CHARS={
   shoppington:{name:"Lord Shoppington",weapon:"fancyCane",shield:"trillionShield",body:"dawnRobes",atk:"poke",
     blurb:"Some say he was born with money, others say he's self-made...All I know is this bag will give you one trillion reasons to love him!"},
   sidekick:{name:"Sidekick",weapon:"longbow",shield:"snowdevilShield",body:"dawnRobes",atk:"cast",
-    blurb:"Queries from the rich and gives to the poor — designed to meet all your automation needs."},
+    blurb:"Your favorite cheerful AI familiar who whispers growth tips, automates the mundane, and gently asks if you've considered improving your Conversion Rate."},
 };
 const MT={
   cart:{name:"Abandoned Cart",class:"physical",hp:14,dmg:2,xp:24,gmv:6,respawn:6,drop:null,r:15,col:"#9aa3ad",spd:155,aggro:3,style:"ram"},
@@ -987,8 +987,13 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(px-6,wallY+2);ctx.lineTo(px+w/2,py-9);ctx.lineTo(px+w+6,wallY+2);ctx.closePath();ctx.fill();
     ctx.fillStyle="rgba(255,255,255,0.09)";ctx.beginPath();ctx.moveTo(px+w/2,py-9);ctx.lineTo(px+w+6,wallY+2);ctx.lineTo(px+w/2,wallY+2);ctx.closePath();ctx.fill();
     ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2,py-9,2,0,7);ctx.fill(); // roof finial
-    ctx.fillStyle="#2a2016";for(const wx of [px+w*0.22,px+w*0.78]){ctx.fillRect(wx-5,wallY+9,10,10);ctx.fillStyle="#7ad0ff";ctx.fillRect(wx-4,wallY+10,8,8);ctx.fillStyle="#2a2016";ctx.fillRect(wx-1,wallY+10,2,8);ctx.fillRect(wx-4,wallY+13,8,2);}
-    ctx.fillStyle="#3a2c1a";ctx.fillRect(px+w/2-7,py+h-16,14,16);ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2+3,py+h-8,1.3,0,7);ctx.fill();
+    const ww=Math.max(20,w*0.22),wh=Math.max(16,wallH*0.42),wy=wallY+wallH*0.16;
+    for(const wx of [px+w*0.25,px+w*0.75]){ctx.fillStyle="#2a2016";ctx.fillRect(wx-ww/2-2,wy-2,ww+4,wh+4);
+      ctx.fillStyle="#7ad0ff";ctx.fillRect(wx-ww/2,wy,ww,wh);
+      ctx.fillStyle="#2a2016";ctx.fillRect(wx-1.5,wy,3,wh);ctx.fillRect(wx-ww/2,wy+wh/2-1.5,ww,3);}
+    const dw=Math.max(24,w*0.2),dh=wallH*0.64;ctx.fillStyle="#3a2c1a";ctx.fillRect(px+w/2-dw/2,py+h-dh,dw,dh);
+    ctx.fillStyle="#2a1c10";ctx.fillRect(px+w/2-dw/2+3,py+h-dh+3,dw-6,dh-3);
+    ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2+dw/2-5,py+h-dh/2,2.2,0,7);ctx.fill();
     if(o.type==="store"){ctx.fillStyle="#c8342f";for(let i=0;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);ctx.fillStyle="#e8e2d2";for(let i=6;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);}
     if(o.type==="hackhq"){ctx.fillStyle="#e8d24a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.fillText("</>",px+w/2,wallY+wallH-6);}
     ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
@@ -1094,7 +1099,7 @@ function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=
   drawCompass(mmctx,15,15);
   drawHpOrb(mmctx,15,H-18);
   const zn=curZone();let fs=13;mmctx.font="bold "+fs+"px Trebuchet MS";while(mmctx.measureText(zn).width>W-14&&fs>8){fs--;mmctx.font="bold "+fs+"px Trebuchet MS";}
-  mmctx.textAlign="center";mmctx.lineWidth=3;mmctx.strokeStyle="#000";mmctx.strokeText(zn,W/2,H-6);mmctx.fillStyle="#e8c46a";mmctx.fillText(zn,W/2,H-6);}
+  mmctx.textAlign="center";mmctx.lineWidth=3;mmctx.strokeStyle="#000";mmctx.strokeText(zn,W/2,H-12);mmctx.fillStyle="#e8c46a";mmctx.fillText(zn,W/2,H-12);}
 function curZone(){const t=pxTile(state.player.px,state.player.py);for(const z of ZONES)if(t.x>=z.x&&t.x<z.x+z.w&&t.y>=z.y&&t.y<z.y+z.h)return z.name;return "The Wilds";}
 function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
   ctx.fillStyle="rgba(10,12,15,0.72)";roundRect(x-5,y-5,w+10,h+10,7);ctx.fill();
@@ -1327,6 +1332,9 @@ function chooseChar(key){state=DEFAULT(key);overlay.classList.remove("show");
   log(`You begin your journey as <b>${CHARS[key].name}</b>!`,"gold");
   log("Click to walk. Fight monsters, chop crates, and click the Bank/Shop to enter. Talk to <b>Tobi the Guide</b> to begin.","");
   save();}
-if(!state){buildCharSelect();overlay.classList.add("show");}
-else{log("<b>Welcome back to Shopscape.</b> Click to walk. Beware — the beasts of commerce now wander and give chase!","sys");}
+const titleScreen=document.getElementById("title-screen");titleScreen.classList.add("show");
+if(!state)buildCharSelect();
+document.getElementById("play-btn").addEventListener("click",()=>{titleScreen.classList.remove("show");
+  if(!state){overlay.classList.add("show");}
+  else{log("<b>Welcome back to Shopscape.</b> Click to walk. Beware — the beasts of commerce wander and give chase!","sys");}});
 requestAnimationFrame(loop);

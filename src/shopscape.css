@@ -85,6 +85,14 @@
   .charcard .blurb{font-size:11px;color:var(--muted);min-height:52px;line-height:1.4;}
   .charcard .gear{font-size:11px;color:var(--ink);margin-top:4px;}
   .charcard .gear b{color:#8ce39a;}
+  /* Title / splash screen */
+  #title-screen{position:absolute;inset:0;background:#0b0d10;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:25;}
+  #title-screen.show{display:flex;}
+  #title-img{max-width:78%;max-height:60%;filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));}
+  #play-btn{margin-top:30px;padding:12px 52px;font-size:21px;font-weight:bold;letter-spacing:2px;color:#241d14;
+    background:linear-gradient(#e8c46a,#c8973a);border:3px solid #0e0a05;border-radius:9px;cursor:pointer;
+    box-shadow:inset 0 0 0 2px #f0d98a,0 4px 12px rgba(0,0,0,.55);}
+  #play-btn:hover{background:linear-gradient(#f2d47e,#d8a648);}
   /* Shop / Bank modal */
   #modal{position:absolute;inset:0;background:rgba(6,8,10,0.72);display:none;align-items:center;justify-content:center;z-index:18;}
   #modal.show{display:flex;}
