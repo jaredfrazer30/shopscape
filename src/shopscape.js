@@ -623,10 +623,10 @@ function drawShield(g,key,sx,sy,face){g.save();const w=11,h=14;
   g.restore();}
 // draws a character centered at origin (feet ~ +16). g already translated to screen pos.
 function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-o.atkProg)*Math.PI):0;
-  const walk=o.moving?Math.sin((o.anim||0)*2):0;const bob=o.moving?Math.abs(walk)*2:0;
-  g.save();g.translate(0,-bob);
-  // shadow
-  g.fillStyle="rgba(0,0,0,0.28)";g.beginPath();g.ellipse(0,16+bob,13,5,0,0,7);g.fill();
+  const t=Date.now()/1000;const walk=o.moving?Math.sin((o.anim||0)*2):0;const bob=o.moving?Math.abs(walk)*2.4:0;
+  const breathe=o.moving?0:Math.sin(t*2.2)*0.7;const blink=(t%3.4)<0.13;
+  g.save();g.fillStyle="rgba(0,0,0,0.28)";g.beginPath();g.ellipse(0,16,12+bob*0.3,5,0,0,7);g.fill();g.restore(); // ground shadow (static)
+  g.save();g.translate(0,-bob+breathe);g.rotate(walk*0.05); // hop + walk waddle + idle breathing
   if(o.char==="river"){
     g.fillStyle="#25506f";g.fillRect(-4+walk*2,8,4,8);g.fillRect(2-walk*2,8,4,8); // feet peeking
     // long blue hair behind
@@ -640,6 +640,7 @@ function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-
     g.fillStyle="#eccca6";g.beginPath();g.arc(0,-13,6,0,7);g.fill();
     g.fillStyle="#3f9ad6";g.beginPath();g.arc(0,-16,6.5,Math.PI,0);g.fill(); // hair fringe
     g.fillStyle="#123";g.fillRect(face>0?1:-3,-14,2,2);
+    if(blink){g.fillStyle="#eccca6";g.fillRect(-3,-15,6,2);}
     drawShield(g,o.shield,-face*10,2,face);
     drawWeapon(g,o.weapon,face*7,-6,face,sw*4,sw);
   }else if(o.char==="shoppy"){
@@ -654,6 +655,7 @@ function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-
     g.fillStyle="#fff";g.beginPath();g.arc(-3.5,-1,2.4,0,7);g.arc(3.5,-1,2.4,0,7);g.fill();
     g.fillStyle="#1b2a12";g.beginPath();g.arc(-3.5,-1,1.1,0,7);g.arc(3.5,-1,1.1,0,7);g.fill();
     g.strokeStyle="#1b2a12";g.lineWidth=1.5;g.beginPath();g.arc(0,3,3,0.15*Math.PI,0.85*Math.PI);g.stroke();
+    if(blink){g.fillStyle="#95bf47";g.fillRect(-6,-2.6,12,2.6);}
     drawShield(g,o.shield,-face*11,4,face);
     drawWeapon(g,o.weapon,face*9,2,face,sw*8,sw); // gloves punch
   }else{ // shoppington
@@ -670,9 +672,11 @@ function drawCharacter(g,o){const face=o.face||1;const sw=o.atkProg?Math.sin((1-
     g.fillStyle="#123";g.fillRect(-3,-11,2,2);
     g.strokeStyle="#e8c46a";g.lineWidth=1.2;g.beginPath();g.arc(3,-10,2.6,0,7);g.stroke();
     g.beginPath();g.moveTo(5,-9);g.lineTo(7,-3);g.stroke(); // monocle chain
+    if(blink){g.fillStyle="#e2c39a";g.fillRect(-5,-12,8,2);}
     drawShield(g,o.shield,-face*11,3,face);
     drawWeapon(g,o.weapon,face*8,0,face,sw*10,sw); // cane thrust
   }
+  if(sw>0.32){g.save();g.scale(face,1);g.globalAlpha=sw*0.5;g.strokeStyle="#fff";g.lineWidth=2.5;g.beginPath();g.arc(6,-2,13,Math.PI*0.12,Math.PI*0.9);g.stroke();g.restore();} // weapon swing swoosh
   g.restore();}
 function playerHpBar(sx,sy){const p=state.player;if(p.hp>=p.maxHp&&!pending)return;const w=30,f=Math.max(0,Math.min(1,p.hp/p.maxHp)),yy=sy-30;
   ctx.fillStyle="#000";ctx.fillRect(sx-w/2-1,yy-1,w+2,6);ctx.fillStyle="#3a0a08";ctx.fillRect(sx-w/2,yy,w,4);
