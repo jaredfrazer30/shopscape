@@ -995,7 +995,6 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     ctx.fillStyle="#2a1c10";ctx.fillRect(px+w/2-dw/2+3,py+h-dh+3,dw-6,dh-3);
     ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(px+w/2+dw/2-5,py+h-dh/2,2.2,0,7);ctx.fill();
     if(o.type==="store"){ctx.fillStyle="#c8342f";for(let i=0;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);ctx.fillStyle="#e8e2d2";for(let i=6;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);}
-    if(o.type==="hackhq"){ctx.fillStyle="#e8d24a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.fillText("</>",px+w/2,wallY+wallH-6);}
     ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
     const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ",supply:"SHOPIFY SUPPLY"}[o.type];
     ctx.strokeText(lbl,px+w/2,wallY-4);ctx.fillText(lbl,px+w/2,wallY-4);return;}
