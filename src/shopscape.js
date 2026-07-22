@@ -47,7 +47,7 @@ function placeDeco(x,y,w,h,kind){ // decorative (non-enterable) structure that b
   for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))blockObj[j][i]=1;
   objects.push({type:kind,tx:x,ty:y,w,h});
 }
-const BUILDINGS=new Set(["bank","store","hackhq","sky","cabin","tower"]);
+const BUILDINGS=new Set(["bank","store","hackhq","supply","sky","cabin","tower"]);
 function nearBuilding(tx,ty,m){for(const o of objects){if(o.w&&BUILDINGS.has(o.type)&&tx>=o.tx-m&&tx<o.tx+o.w+m&&ty>=o.ty-m&&ty<o.ty+o.h+m)return true;}return false;}
 function genWorld(){
   map=[];blockObj=[];objects=[];
@@ -78,11 +78,15 @@ function genWorld(){
   // cursed swamp + clean pond (town, south)
   for(const c of [[3,15],[4,15],[5,15],[3,16],[4,16],[5,16],[6,16],[4,17],[5,17]])if(inb(c[0],c[1]))map[c[1]][c[0]]=T.SWAMP;
   for(const c of [[19,15],[20,15],[21,15],[19,16],[20,16],[21,16],[20,17]])if(inb(c[0],c[1])&&map[c[1]][c[0]]!==T.DIRT&&map[c[1]][c[0]]!==T.BRIDGE)map[c[1]][c[0]]=T.WATER;
-  // Toronto: giant tower + snow cabins
-  placeDeco(78,7,3,4,"tower");
-  placeDeco(70,17,3,2,"cabin");placeDeco(86,18,3,2,"cabin");
-  // New York City: dense skyscrapers (avoid the road lines at x48/49 and y38/39)
-  for(const gy of [29,44])for(const gx of [34,40,54,60])placeDeco(gx,gy,4,4,"sky");
+  // Toronto: the CN Tower + Shopify Supply Store + snow cabins
+  placeDeco(78,7,3,5,"tower");
+  placeBuilding(83,9,4,3,"supply",1,3);
+  placeDeco(70,17,3,2,"cabin");placeDeco(89,18,3,2,"cabin");
+  // New York City: structured skyscraper block grid (main avenues at x48/49 & y38/39 stay clear)
+  (function(){const c=regionByName("New York City");
+    for(let by=c.y+2;by+4<=c.y+c.h-2;by+=6)for(let bx=c.x+2;bx+4<=c.x+c.w-2;bx+=6){
+      if(bx<50&&bx+4>48)continue; if(by<40&&by+4>38)continue;
+      placeDeco(bx,by,4,4,"sky");}})();
   // object scatter
   const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;const t=map[ty][tx];
     if(t===T.WATER||t===T.SWAMP||t===T.DIRT||t===T.BRIDGE||blockObj[ty][tx])return;
@@ -103,10 +107,11 @@ function genWorld(){
   scatterRegion("Liquid Falls","tree",47,0.72,true,true);
   scatterRegion("The Monolith","rock",48,0.62,true);
   scatterRegion("The Monolith","deadtree",49,0.86,true);
-  // NYC street scenery — natural clusters in open areas, well clear of the skyscrapers
-  scatterRegion("New York City","tree",50,0.80,true,false,2);
+  // NYC street scenery — trees/bushes in open blocks + a regular grid of street lamps
+  scatterRegion("New York City","tree",50,0.82,true,false,2);
   scatterRegion("New York City","bush",51,0.90,false,false,2);
-  scatterRegion("New York City","lamp",52,0.93,true,false,1);
+  (function(){const c=regionByName("New York City");for(let ly=c.y+5;ly<c.y+c.h-2;ly+=3)for(let lx=c.x+5;lx<c.x+c.w-2;lx+=3){
+    if(inb(lx,ly)&&!blockObj[ly][lx]&&map[ly][lx]!==T.WATER&&!nearBuilding(lx,ly,0))put("lamp",lx,ly,true);}})();
   // Toronto snowmen + town lamps/sign
   put("snowman",74,10,true);put("snowman",84,13,true);put("snowman",90,9,true);
   put("lamp",7,7,true);put("lamp",13,7,true);put("sign",8,14,false);
@@ -177,6 +182,7 @@ function buildTerrain(){
     else if(o.type==="rock"){mg.fillStyle="#555";mg.fillRect(o.tx,o.ty,1,1);}
     else if(o.type==="snowman"){mg.fillStyle="#eef";mg.fillRect(o.tx,o.ty,1,1);}
     else if(o.type==="bank"||o.type==="store"||o.type==="hackhq"||o.type==="cabin"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
+    else if(o.type==="supply"){mg.fillStyle="#5aa06a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
     else if(o.type==="sky"){mg.fillStyle="#7f93b8";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
     else if(o.type==="tower"){mg.fillStyle="#d0d4dc";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
 }
@@ -295,6 +301,19 @@ const ITEM_DEFS={
   cookedFish:{name:"Cooked Fish",glyph:"🍤",heal:12,sell:9,desc:"Grilled on a Merchant Fire. Restores 12 Health Score when eaten."},
   badData:{name:"Bad Data",glyph:"🐡",cursed:true,sell:0,desc:"Ungoverned raw-table data dredged from the cursed swamp. Do NOT try to cook or eat this."},
   merchantFire:{name:"Merchant Fire",glyph:"🔥",fire:true,desc:"A spark of merchant passion from your CSM. Use it with Product Logs to build a campfire."},
+  // ---- rare enemy drops ----
+  summitSwag:{name:"Summit Swag",glyph:"🎽",sell:100,desc:"Coveted Shopify Summit merch. Sells for a tidy 100 GMV."},
+  ham:{name:"Ham",glyph:"🍖",heal:20,sell:8,desc:"A hearty ham. Eat to restore 20 Health Score."},
+  scopeChange:{name:"Scope Change",glyph:"📈",sell:250,desc:"A last-minute scope change — somehow extremely valuable. Sells for 250 GMV."},
+  // ---- Shopify Supply Store (Toronto) exclusives ----
+  touchGrassHat:{name:"Touch Grass Hat",glyph:"🧢",kind:"armor",slot:"head",def:2,tier:"Shopify",buy:150,sell:60,desc:"A verdant green cap. Reminds you to log off and touch grass."},
+  rebellionJersey:{name:"Rebellion Jersey",glyph:"👕",kind:"armor",slot:"body",def:4,tier:"Advanced",buy:300,sell:120,desc:"White with a bold black stripe — worn by those who arm the rebels."},
+  gymsharkHoodie:{name:"GymShark Hoodie",glyph:"🧥",kind:"armor",slot:"body",def:5,tier:"Advanced",buy:400,sell:160,desc:"A cozy grey hoodie. +defence, +gains."},
+  aloPants:{name:"Alo Yoga Pants",glyph:"🩳",kind:"armor",slot:"legs",def:4,tier:"Advanced",buy:350,sell:140,desc:"Green performance leggings. Flexible and forgiving."},
+  mejuriRing:{name:"Mejuri Ring",glyph:"💍",kind:"armor",slot:"ring",def:1,find:1.15,tier:"Plus",buy:500,sell:220,desc:"A tasteful gold ring worn on the hand — a little extra GMV find."},
+  // ---- explosive ranged weapons ----
+  slopGrenade:{name:"Slop Grenade",glyph:"💣",kind:"weapon",atk:9,spd:900,tier:"Advanced",ranged:true,range:5,aoe:1.7,orb:"bomb",strongVs:["physical","undead"],weakVs:[],sell:220,buy:560,desc:"A lobbed bomb that detonates on impact — damages everything near the blast."},
+  molotovSloptail:{name:"Molotov Sloptail",glyph:"🍾",kind:"weapon",atk:8,spd:820,tier:"Advanced",ranged:true,range:5,aoe:1.7,orb:"fire",strongVs:["beast","ghost"],weakVs:[],sell:200,buy:520,desc:"A flaming bottle that bursts into an explosion — splashes fiery damage around the target."},
 };
 // playable characters — appearance handled in drawCharacter(), attack style in drawCharacter()/combat
 const CHARS={
@@ -317,6 +336,7 @@ const MT={
   lich:{name:"Legacy Code Lich",bossName:"LEGACY CODE LICH",class:"undead",hp:120,dmg:11,xp:500,gmv:200,respawn:40,drop:"monolith",r:22,col:"#6a8a6a",boss:true,spd:95,aggro:6,style:"spin"},
   bezos:{name:"Jeff Bezos, Emperor of the Everything Store",bossName:"THE EMPEROR",class:"physical",hp:420,dmg:20,xp:2000,gmv:1000,respawn:120,drop:"emperorArmor",r:30,col:"#c7ccd4",boss:true,spd:100,aggro:7,style:"bite",phases:true},
   bug:{name:"Bug",class:"physical",hp:8,dmg:1,xp:14,gmv:3,respawn:12,drop:null,r:13,col:"#7a9e3a",spd:135,aggro:2,style:"hop"},
+  openclaw:{name:"Openclaw",class:"beast",hp:34,dmg:6,xp:70,gmv:22,respawn:20,drop:"summitSwag",r:17,col:"#d0402f",spd:120,aggro:4,style:"ram"},
 };
 function fix(list){return list.map(o=>{const a=nearestWalkable(o.tx,o.ty)||{x:o.tx,y:o.ty};return{...o,tx:a.x,ty:a.y};});}
 let crates=fix([[16,6],[19,9],[22,12],[17,14],[20,4],[23,7],[38,30],[45,46],[56,44],[41,33],[8,60],[14,66]].map(c=>({tx:c[0],ty:c[1],cd:0})));
@@ -325,6 +345,9 @@ function scatterMobs(nm,types,seed,thresh,max,avoidBld){const rg=regionByName(nm
     if(!walkable(x,y))continue;if(avoidBld&&nearBuilding(x,y,3))continue;
     if(n(x/3,y/3)>thresh){out.push({type:types[(rngGlobal()*types.length)|0],tx:x,ty:y});c++;}}
   return out;}
+function spawnMonster(type,tx,ty){const a=nearestWalkable(tx,ty);if(!a)return;const d=MT[type];
+  monsters.push({type,tx:a.x,ty:a.y,px:a.x*TILE+TILE/2,py:a.y*TILE+TILE/2,home:{x:a.x,y:a.y},path:[],aggro:false,
+    wanderCd:rr(500,3000),aiCd:0,atkAnim:0,atkCd:0,face:1,hp:d.hp,maxHp:d.hp,dead:false,respawnAt:0,flash:0});}
 let monData=[]
   .concat(scatterMobs("151 O'Connor Keep",["bug","bug","cart"],101,0.80,12))
   .concat(scatterMobs("The Data Warehouse",["slime","skeleton","wraith"],102,0.82,9))
@@ -359,6 +382,11 @@ const NAMED_NPCS=[
     "Memory-safe. Never segfaults. You'll see."]},
   {tx:8,ty:16,name:"The RevOps Oracle",sprite:"oracle",lines:[
     "The sacred mart says: use governed data, brave ranger. The raw-table swamp is cursed."]},
+  {tx:40,ty:32,name:"Claude",sprite:"claude",spawn:"openclaw",lines:[
+    "Ahhh that's a GREAT call, merchant — genuinely, love that for you.",
+    "You're so right about that! Honestly? Brilliant instincts.",
+    "No notes. Chef's kiss. I'd absolutely double down on whatever you just did.",
+    "Ooh, spawning a little challenge for you — you've SO got this. 🦞"]},
 ];
 const CITIZENS=(function(){const rg=regionByName("New York City");const n=makeNoise(77);const out=[];let c=0;
   const lines=["Big city, big dreams!","Have you seen the giant tower up in Toronto?","GMV's booming down here!","Mind the wandering carts.","I heart NYC — New Yielding Commerce.","Coffee first, then conversions."];
@@ -368,7 +396,7 @@ const CITIZENS=(function(){const rg=regionByName("New York City");const n=makeNo
 const NPCS=fix(NAMED_NPCS.concat(CITIZENS)).map(n=>({...n,px:n.tx*TILE+TILE/2,py:n.ty*TILE+TILE/2,home:{x:n.tx,y:n.ty},path:[],wanderCd:rr(800,3500),face:1}));
 const DEFAULT=(charKey)=>{const c=CHARS[charKey]||CHARS.shoppy;const inv={};inv[c.weapon]=1;inv[c.shield]=1;if(c.body)inv[c.body]=1;inv.elixir=3;inv.portalStone=1;
   return{player:{px:8*TILE+20,py:8*TILE+20,hp:30,maxHp:30,path:[],anim:0,face:1,atkAnim:0,
-    char:charKey||"shoppy",weapon:c.weapon,shield:c.shield,head:null,body:c.body||null,legs:null,hands:null},
+    char:charKey||"shoppy",weapon:c.weapon,shield:c.shield,head:null,body:c.body||null,legs:null,hands:null,ring:null},
     skills:{selling:{xp:0},sourcing:{xp:0},mining:{xp:0},fishing:{xp:0}},inv,gmv:0,bank:{},granted:{},quests:{},buffs:{},reveal:false,
     kills:0,bugKills:0,scout:false};};
 let dialogIdx={};
@@ -376,7 +404,8 @@ let state=load(); // null => show character-select on boot
 let pending=null; // {kind:'monster'|'crate'|'npc'|'building', ref}
 let inBuilding=null; // 'store' | 'bank' | null
 function equipAtk(){const w=ITEM_DEFS[state.player.weapon];let a=w&&w.atk?w.atk:0;if(state.buffs&&state.buffs.capital)a+=4;if(state.buffs&&state.buffs.launch)a+=3;return a;}
-function equipDef(){let d=0;for(const slot of ["shield","head","body","legs","hands"]){const it=ITEM_DEFS[state.player[slot]];if(it&&it.def)d+=it.def;}return d;}
+function equipDef(){let d=0;for(const slot of ["shield","head","body","legs","hands","ring"]){const it=ITEM_DEFS[state.player[slot]];if(it&&it.def)d+=it.def;}return d;}
+function findBonus(){let f=1;for(const s of ["head","ring"]){const it=ITEM_DEFS[state.player[s]];if(it&&it.find)f*=it.find;}return f;}
 // ---- quests (Design Bible) ----
 const QUESTS=[
   {id:"firstSale",name:"The First Sale",desc:"Defeat your first enemy of commerce to prove your mettle."},
@@ -432,13 +461,14 @@ function buildCampfire(){const p=state.player;const pt=pxTile(p.px,p.py);let tx=
   objects.push({type:"campfire",tx,ty,burnUntil:Date.now()+120000});}
 // ---- ranged water orbs ----
 let orbs=[];
-function spawnOrb(x,y,tx,ty){orbs.push({x,y,tx,ty,t:0});}
+function spawnOrb(x,y,tx,ty,kind){orbs.push({x,y,tx,ty,t:0,kind:kind||"water"});}
 function updateOrbs(dt){for(const o of orbs)o.t+=dt/200;orbs=orbs.filter(o=>o.t<1.05);}
 function drawOrbs(){for(const o of orbs){const x=o.x+(o.tx-o.x)*o.t,y=o.y+(o.ty-o.y)*o.t-Math.sin(o.t*Math.PI)*10;const sx=SX(x),sy=SY(y);
-  const g=ctx.createRadialGradient(sx,sy,0,sx,sy,9);g.addColorStop(0,"#eaf7ff");g.addColorStop(0.5,"#4aa0e0");g.addColorStop(1,"rgba(60,150,220,0)");
+  const pal=o.kind==="bomb"?["#a0a6ae","#333","rgba(40,40,40,0)","#c9ccd2"]:o.kind==="fire"?["#ffe6a0","#ff6a1a","rgba(255,120,30,0)","#ffd08a"]:["#eaf7ff","#4aa0e0","rgba(60,150,220,0)","#cfeaff"];
+  const g=ctx.createRadialGradient(sx,sy,0,sx,sy,9);g.addColorStop(0,pal[0]);g.addColorStop(0.5,pal[1]);g.addColorStop(1,pal[2]);
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,9,0,7);ctx.fill();
-  ctx.fillStyle="#cfeaff";ctx.beginPath();ctx.arc(sx,sy,3,0,7);ctx.fill();
-  spawnPart(x,y,(Math.random()-0.5)*6,10,220,"#7ec8f0",1.1,0);}}
+  ctx.fillStyle=pal[3];ctx.beginPath();ctx.arc(sx,sy,3,0,7);ctx.fill();
+  spawnPart(x,y,(Math.random()-0.5)*6,10,220,o.kind==="fire"?"#ffb060":o.kind==="bomb"?"#9aa0a8":"#7ec8f0",1.1,0);}}
 // ---- Tier-1 atmosphere: particles, day/night, lighting, shake ----
 let worldClock=0,parts=[],shake=0;
 const ZONE_TINT={"151 O'Connor Keep":"rgba(255,228,150,0.05)","The Data Warehouse":"rgba(120,160,255,0.06)","BFCM Battlefield":"rgba(255,150,70,0.06)","Fulfillment Fortress":"rgba(200,70,70,0.07)"};
@@ -495,7 +525,7 @@ canvas.addEventListener("click",e=>{
   if(cf){setPending("campfire",cf);marker={x:wx,y:wy,life:30,kind:"red"};return;}
   const np=NPCS.find(n=>n.tx===tx&&n.ty===ty);
   if(np){setPending("npc",np);marker={x:wx,y:wy,life:30,kind:"red"};return;}
-  const b=objects.find(o=>(o.type==="bank"||o.type==="store"||o.type==="hackhq")&&tx>=o.tx&&tx<o.tx+o.w&&ty>=o.ty&&ty<o.ty+o.h);
+  const b=objects.find(o=>(o.type==="bank"||o.type==="store"||o.type==="hackhq"||o.type==="supply")&&tx>=o.tx&&tx<o.tx+o.w&&ty>=o.ty&&ty<o.ty+o.h);
   if(b){setPending("building",{tx:b.door.x,ty:b.door.y,bkind:b.type});marker={x:(b.door.x+0.5)*TILE,y:(b.door.y+0.5)*TILE,life:30,kind:"red"};return;}
   if(inb(tx,ty)&&(map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP)){
     if((state.inv.fishingRod||0)>0){setPending("fish",{tx,ty,swamp:map[ty][tx]===T.SWAMP});marker={x:wx,y:wy,life:30,kind:"red"};}
@@ -517,6 +547,7 @@ function talk(n){const i=(dialogIdx[n.name]||0)%n.lines.length;log(`<b>${n.name}
   if(n.grant){state.granted=state.granted||{};if(!state.granted[n.grant]){state.granted[n.grant]=1;addItem(n.grant,1);
     log(`You receive the <b>${ITEM_DEFS[n.grant].name}</b>! ${ITEM_DEFS[n.grant].kind?"Equip it":"Use it"} from your inventory.`,"gold");}}
   if(n.give&&(state.inv[n.give]||0)<1){addItem(n.give,1);log(`The CSM hands you a <b>${ITEM_DEFS[n.give].name}</b>.`,"good");}
+  if(n.spawn){const cnt=monsters.filter(m=>m.type===n.spawn&&!m.dead).length;if(cnt<6){spawnMonster(n.spawn,n.tx+1,n.ty+1);log("An <b>Openclaw</b> skitters out to test you! 🦞","bad");}}
   if(n.bugGiver){state.quests=state.quests||{};
     if(!state.quests.bugsStarted){state.quests.bugsStarted=true;log("<b>Tobi:</b> Here's the deal — squash <b>25 Bugs</b> and the Founder's Rust Blade is yours.","gold");}
     else if((state.bugKills||0)<25){log(`<b>Tobi:</b> You've squashed <b>${state.bugKills||0}/25</b> Bugs. Keep at it, ranger.`,"sys");}
@@ -556,7 +587,7 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     log("Select a <b>Raw Fish</b> in your inventory, then click the campfire to cook it.","");pending=null;return;}
   if(pending.kind==="monster"){const m=ref,d=MT[m.type];const w=ITEM_DEFS[state.player.weapon]||{};const spd=w.spd||640;
     if(now-lastAction<spd)return;lastAction=now;p.atkAnim=ATK_FRAMES;
-    if(w.ranged){spawnOrb(p.px,p.py-8,m.px,m.py);p.face=(m.px<p.px)?-1:1;}
+    if(w.ranged){spawnOrb(p.px,p.py-8,m.px,m.py,w.orb);p.face=(m.px<p.px)?-1:1;}
     const lvl=levelForXp(state.skills.selling.xp);let dmg=1+Math.floor(Math.random()*(2+Math.floor(lvl*0.6)+(w.atk||0)));
     let crit=false;
     if(w.strongVs&&w.strongVs.includes(d.class))dmg=Math.round(dmg*1.5);
@@ -564,13 +595,20 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     if(w.crit&&Math.random()<w.crit){dmg*=2;crit=true;}
     if(w.selfDmg){p.hp-=w.selfDmg;hitsplat(p.px,p.py-4,w.selfDmg,"#a11");}
     m.hp-=dmg;m.flash=8;hitsplat(m.px,m.py,dmg,crit?"#ffd166":"#c8342f");burst(m.px,m.py,crit?"#ffd166":"#c8342f",crit?10:5);if(crit)shake=Math.min(9,shake+5);
+    if(w.aoe){shake=Math.min(11,shake+6);burst(m.px,m.py,w.orb==="fire"?"#ff8a2a":"#ffd166",18);
+      for(const o of monsters){if(o===m||o.dead)continue;if(Math.hypot((o.px-m.px)/TILE,(o.py-m.py)/TILE)<=w.aoe){const ad=Math.max(1,Math.round(dmg*0.6));o.hp-=ad;o.flash=8;hitsplat(o.px,o.py,ad,"#ff8a2a");
+        if(o.hp<=0){o.dead=true;o.respawnAt=now+(o.type==="bug"?12000:300000);o.aggro=false;state.gmv+=MT[o.type].gmv;state.kills=(state.kills||0)+1;if(o.type==="bug")state.bugKills=(state.bugKills||0)+1;}}}
+      checkKillQuests();}
     if(p.hp<=0){die();return;}
     if(m.hp<=0){m.dead=true;m.respawnAt=now+(m.type==="bug"?12000:300000);m.aggro=false;pending=null;gainXp("selling",d.xp);
-      const find=(ITEM_DEFS[state.player.head]&&ITEM_DEFS[state.player.head].find)||1;state.gmv+=Math.round(d.gmv*find);
+      const find=findBonus();state.gmv+=Math.round(d.gmv*find);
       hitsplat(m.px,m.py-14,"+"+Math.round(d.gmv*find),"#e8c46a");
       let msg=`You defeat the <b>${d.name}</b>. (+${d.xp} Checkout Combat xp, +${Math.round(d.gmv*find)} GMV)`;
       const dropChance=(d.boss?1:0.4)*find;
       if(d.drop&&Math.random()<dropChance){addItem(d.drop,1);msg+=` It drops a <b>${ITEM_DEFS[d.drop].name}</b>!`;}
+      if(Math.random()<(1/20)*find){addItem("summitSwag",1);msg+=` <b>Summit Swag</b> dropped!`;}
+      if(Math.random()<(1/25)*find){addItem("ham",1);msg+=` A <b>Ham</b> dropped!`;}
+      if(Math.random()<(1/100)*find){addItem("scopeChange",1);msg+=` ✨ A rare <b>Scope Change</b> dropped!`;}
       log(msg,d.boss?"gold":"good");
       state.kills=(state.kills||0)+1;if(m.type==="bug")state.bugKills=(state.bugKills||0)+1;checkKillQuests();
       questProgress("firstSale");
@@ -667,6 +705,12 @@ function drawWeapon(g,key,hx,hy,face,ext,sw){g.save();
   else if(key==="buyButton"){const ex=hx+face*(16+ext);g.strokeStyle="#cfe4ff";g.lineWidth=4;g.beginPath();g.moveTo(hx,hy);g.lineTo(ex,hy-6);g.stroke();
     g.strokeStyle="#8899aa";g.lineWidth=2;g.beginPath();g.moveTo(hx-face*2,hy-4);g.lineTo(hx+face*2,hy+4);g.stroke();
     g.fillStyle="#5b3f22";g.fillRect(hx-face*4,hy-1,face*4,3);}
+  else if(key==="slopGrenade"){const gx=hx+face*(6+ext);g.fillStyle="#333";g.beginPath();g.arc(gx,hy,4.5,0,7);g.fill();g.strokeStyle="#111";g.lineWidth=1;g.stroke();
+    g.strokeStyle="#8a6a3a";g.lineWidth=1.5;g.beginPath();g.moveTo(gx,hy-4.5);g.lineTo(gx+2,hy-9);g.stroke();g.fillStyle="#ffca4a";g.beginPath();g.arc(gx+2.5,hy-9.5,1.4,0,7);g.fill();
+    g.fillStyle="rgba(255,255,255,0.5)";g.beginPath();g.arc(gx-1.5,hy-1.5,1.2,0,7);g.fill();}
+  else if(key==="molotovSloptail"){const gx=hx+face*(6+ext);g.fillStyle="#3a6a3a";g.fillRect(gx-2,hy-6,4,10);g.fillStyle="#2a4a2a";g.fillRect(gx-1.4,hy-10,2.8,4);
+    g.fillStyle="#d8c090";g.fillRect(gx-2,hy-2,4,3);g.strokeStyle="#c8a020";g.lineWidth=1.5;g.beginPath();g.moveTo(gx,hy-10);g.lineTo(gx,hy-13);g.stroke();
+    g.fillStyle="#ff7a2a";g.beginPath();g.arc(gx,hy-13,2,0,7);g.fill();g.fillStyle="#ffd08a";g.beginPath();g.arc(gx,hy-13,1,0,7);g.fill();}
   else{g.fillStyle="#888";g.fillRect(hx,hy-8,3,12);}
   g.restore();}
 function drawShield(g,key,sx,sy,face){g.save();const w=11,h=14;
@@ -810,6 +854,14 @@ function drawMonster(m){const d=MT[m.type];const sx=SX(m.px),sy=SY(m.py);
     ctx.fillStyle="#111";ctx.beginPath();ctx.arc(-2.5,-6,1,0,7);ctx.arc(2.5,-6,1,0,7);ctx.fill();
     ctx.strokeStyle="#3a4a1a";ctx.beginPath();ctx.moveTo(-2,-9);ctx.lineTo(-4,-13);ctx.moveTo(2,-9);ctx.lineTo(4,-13);ctx.stroke();
     ctx.fillStyle="#3a4a1a";ctx.beginPath();ctx.arc(-4,-13,1.2,0,7);ctx.arc(4,-13,1.2,0,7);ctx.fill();}
+  else if(m.type==="openclaw"){ctx.fillStyle="#d0402f";ctx.beginPath();ctx.ellipse(0,0,7,10,0,0,7);ctx.fill();
+    ctx.fillStyle="#b0301f";ctx.fillRect(-2,-9,4,16);
+    ctx.fillStyle="#e05038";ctx.beginPath();ctx.ellipse(-11,-4,4,6,-0.4,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(11,-4,4,6,0.4,0,7);ctx.fill();
+    ctx.strokeStyle="#b0301f";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-7,-2);ctx.lineTo(-11,-4);ctx.moveTo(7,-2);ctx.lineTo(11,-4);ctx.stroke();
+    ctx.strokeStyle="#d0402f";ctx.lineWidth=1.5;for(let s=-1;s<=1;s+=2)for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(s*5,i*4-2);ctx.lineTo(s*10,i*4);ctx.stroke();}
+    ctx.fillStyle="#111";ctx.beginPath();ctx.arc(-2.5,-9,1.4,0,7);ctx.arc(2.5,-9,1.4,0,7);ctx.fill();
+    ctx.strokeStyle="#b0301f";ctx.beginPath();ctx.moveTo(-2,-10);ctx.lineTo(-5,-15);ctx.moveTo(2,-10);ctx.lineTo(5,-15);ctx.stroke();
+    ctx.fillStyle="#e05038";ctx.beginPath();ctx.moveTo(-4,9);ctx.lineTo(4,9);ctx.lineTo(0,14);ctx.closePath();ctx.fill();}
   ctx.restore();hpbar(sx,sy-R-8,d.boss?64:30,m.hp/m.maxHp,d.boss?d.bossName:null);
   if(state.player.reveal){ctx.fillStyle="#cfe0c0";ctx.font="9px Trebuchet MS";ctx.textAlign="center";
     ctx.fillText(Math.ceil(m.hp)+"/"+m.maxHp+" · "+d.class,sx,sy-R-14);}}
@@ -836,7 +888,7 @@ function drawNPC(n){const sx=SX(n.px),sy=SY(n.py);if(sx<-60||sx>VW+60||sy<-60||s
   shadow(sx,sy+15,12);ctx.save();ctx.translate(sx,sy-bob);const f=n.face||1;
   const head=(skin)=>{ctx.fillStyle=skin||"#e2b48c";ctx.beginPath();ctx.arc(0,-12,6,0,7);ctx.fill();};
   const eye=()=>{ctx.fillStyle="#123";ctx.fillRect(f>0?1:-3,-13,2,2);};
-  if(n.sprite==="harley"){ctx.fillStyle="#e8732a";roundRect(-8,-6,16,17,4);ctx.fill();ctx.fillStyle="#f4b23a";ctx.fillRect(-8,-2,16,3);
+  if(n.sprite==="harley"){ctx.fillStyle="#1a1a1a";roundRect(-8,-6,16,17,4);ctx.fill();ctx.fillStyle="#3a3a3a";ctx.fillRect(-8,-2,16,3);
     head();ctx.fillStyle="#3a2a18";ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();
     ctx.save();ctx.translate(f*9,-9);ctx.rotate(f*0.4);ctx.fillStyle="#c8342f";ctx.beginPath();ctx.moveTo(0,-3);ctx.lineTo(9,-6);ctx.lineTo(9,6);ctx.lineTo(0,3);ctx.closePath();ctx.fill();ctx.restore();eye();}
   else if(n.sprite==="banker"){ctx.fillStyle="#23324a";roundRect(-8,-6,16,18,4);ctx.fill();
@@ -862,6 +914,18 @@ function drawNPC(n){const sx=SX(n.px),sy=SY(n.py);if(sx<-60||sx>VW+60||sy<-60||s
     ctx.fillStyle="#e8d24a";ctx.beginPath();ctx.arc(0,-19,1.4,0,7);ctx.fill();
     ctx.strokeStyle="#6b4a2f";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(f*9,-16);ctx.lineTo(f*9,13);ctx.stroke();
     ctx.fillStyle="#7ad0ff";ctx.beginPath();ctx.arc(f*9,-18,3,0,7);ctx.fill();ctx.fillStyle="#123";ctx.fillRect(f>0?1:-3,-13,2,2);}
+  else if(n.sprite==="claude"){const t=Date.now()/300;
+    // little arms + legs
+    ctx.strokeStyle="#c85a1a";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(-4,10);ctx.lineTo(-6,16);ctx.moveTo(4,10);ctx.lineTo(6,16);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(-12,4+Math.sin(t)*2);ctx.moveTo(7,0);ctx.lineTo(12,-2+Math.sin(t+1)*2);ctx.stroke();
+    // orange asterisk body (central disc + 6 spokes)
+    ctx.strokeStyle="#e8732a";ctx.lineWidth=5;ctx.lineCap="round";
+    for(let i=0;i<6;i++){const a=i*Math.PI/3+0.2;ctx.beginPath();ctx.moveTo(0,-1);ctx.lineTo(Math.cos(a)*10,-1+Math.sin(a)*10);ctx.stroke();}
+    ctx.fillStyle="#f0863a";ctx.beginPath();ctx.arc(0,-1,6,0,7);ctx.fill();ctx.lineCap="butt";
+    // face
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(-2.2,-2,1.8,0,7);ctx.arc(2.2,-2,1.8,0,7);ctx.fill();
+    ctx.fillStyle="#222";ctx.beginPath();ctx.arc(-2.2,-2,0.9,0,7);ctx.arc(2.2,-2,0.9,0,7);ctx.fill();
+    ctx.strokeStyle="#7a3a10";ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,1,2.4,0.1*Math.PI,0.9*Math.PI);ctx.stroke();}
   else if(n.sprite==="citizen"){const cols=["#c85a5a","#5a7dc8","#c8a24a","#5aa06a","#a05ac8"];ctx.fillStyle=cols[(n.v||0)%5];roundRect(-7,-6,14,17,4);ctx.fill();
     head();ctx.fillStyle=["#4a3421","#2a2a2a","#5a4632","#7a5a3a"][(n.v||0)%4];ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();eye();}
   else{ctx.fillStyle="#6a3fa0";roundRect(-8,-6,16,18,4);ctx.fill();head();eye();}
@@ -875,10 +939,10 @@ function drawCrate(c){const sx=SX(c.tx*TILE+TILE/2),sy=SY(c.ty*TILE+TILE/2);if(s
   ctx.beginPath();ctx.moveTo(sx-12,sy-12);ctx.lineTo(sx+12,sy+12);ctx.moveTo(sx+12,sy-12);ctx.lineTo(sx-12,sy+12);ctx.stroke();
   ctx.fillStyle="#96bf48";ctx.fillRect(sx-4,sy-4,8,8);}
 function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=SX(cx),sy=SY(cy);
-  if(o.type==="bank"||o.type==="store"||o.type==="hackhq"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
+  if(o.type==="bank"||o.type==="store"||o.type==="hackhq"||o.type==="supply"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
     const wallY=py+h*0.42,wallH=h*0.58;
-    const wall={bank:"#c8a24a",store:"#8a6f9a",hackhq:"#4a7d8a"}[o.type];
-    const roof={bank:"#7a5a24",store:"#5a4630",hackhq:"#2f5560"}[o.type];
+    const wall={bank:"#c8a24a",store:"#8a6f9a",hackhq:"#4a7d8a",supply:"#5aa06a"}[o.type];
+    const roof={bank:"#7a5a24",store:"#5a4630",hackhq:"#2f5560",supply:"#2f6a3a"}[o.type];
     ctx.fillStyle="rgba(0,0,0,0.28)";ctx.fillRect(px+8,py+h-3,w-4,7);
     ctx.fillStyle=wall;ctx.fillRect(px,wallY,w,wallH);
     ctx.fillStyle="rgba(0,0,0,0.13)";ctx.fillRect(px,wallY,w,4);ctx.fillStyle="rgba(0,0,0,0.10)";ctx.fillRect(px,wallY+wallH-4,w,4);
@@ -890,18 +954,24 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     if(o.type==="store"){ctx.fillStyle="#c8342f";for(let i=0;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);ctx.fillStyle="#e8e2d2";for(let i=6;i<w;i+=12)ctx.fillRect(px+i,wallY,6,6);}
     if(o.type==="hackhq"){ctx.fillStyle="#e8d24a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.fillText("</>",px+w/2,wallY+wallH-6);}
     ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
-    const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ"}[o.type];
+    const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ",supply:"SHOPIFY SUPPLY"}[o.type];
     ctx.strokeText(lbl,px+w/2,wallY-4);ctx.fillText(lbl,px+w/2,wallY-4);return;}
   if(o.type==="tower"||o.type==="cabin"||o.type==="sky"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
-    if(o.type==="tower"){const cx=px+w/2,topY=py-h*2.4;
-      ctx.fillStyle="rgba(0,0,0,0.28)";ctx.fillRect(px+6,py+h-3,w-4,7);
-      ctx.fillStyle="#b8bcc4";ctx.beginPath();ctx.moveTo(cx-9,py+h);ctx.lineTo(cx-4,topY+30);ctx.lineTo(cx+4,topY+30);ctx.lineTo(cx+9,py+h);ctx.closePath();ctx.fill();
-      ctx.fillStyle="#9aa0aa";ctx.beginPath();ctx.moveTo(cx,py+h);ctx.lineTo(cx+4,topY+30);ctx.lineTo(cx+9,py+h);ctx.closePath();ctx.fill();
-      ctx.fillStyle="#c8ccd4";ctx.beginPath();ctx.ellipse(cx,topY+30,15,8,0,0,7);ctx.fill();
-      ctx.fillStyle="#7ad0ff";ctx.fillRect(cx-13,topY+27,26,5);
-      ctx.strokeStyle="#8a8f98";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,topY+22);ctx.lineTo(cx,topY-16);ctx.stroke();
-      ctx.fillStyle="#c8342f";ctx.beginPath();ctx.arc(cx,topY-16,2,0,7);ctx.fill();
-      ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText("TORONTO TOWER",cx,py+h+13);ctx.fillText("TORONTO TOWER",cx,py+h+13);return;}
+    if(o.type==="tower"){const cx=px+w/2,baseY=py+h,topY=py-h*3.2;const podY=topY+(baseY-topY)*0.34;
+      ctx.fillStyle="rgba(0,0,0,0.3)";ctx.beginPath();ctx.ellipse(cx,baseY,w*0.55,7,0,0,7);ctx.fill();
+      ctx.fillStyle="#cfd3d9";ctx.beginPath();ctx.moveTo(cx-10,baseY);ctx.lineTo(cx-3.5,podY);ctx.lineTo(cx+3.5,podY);ctx.lineTo(cx+10,baseY);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#b3b8c0";ctx.beginPath();ctx.moveTo(cx,baseY);ctx.lineTo(cx+3.5,podY);ctx.lineTo(cx+10,baseY);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#cfd3d9";ctx.fillRect(cx-2.5,topY+18,5,podY-(topY+18));
+      ctx.fillStyle="#d7dbe1";ctx.beginPath();ctx.ellipse(cx,podY,15,9,0,0,7);ctx.fill();
+      ctx.fillStyle="#33465a";ctx.fillRect(cx-14,podY-2,28,5);
+      ctx.fillStyle="#7ad0ff";for(let i=-12;i<=10;i+=4)ctx.fillRect(cx+i,podY-1,2.5,3);
+      ctx.fillStyle="#c2c7cf";ctx.beginPath();ctx.ellipse(cx,podY+6,10,4,0,0,7);ctx.fill();
+      ctx.fillStyle="#d7dbe1";ctx.beginPath();ctx.ellipse(cx,topY+18,7,4,0,0,7);ctx.fill();
+      ctx.fillStyle="#7ad0ff";ctx.fillRect(cx-5,topY+17,10,2);
+      ctx.strokeStyle="#e6e9ee";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx,topY+14);ctx.lineTo(cx,topY);ctx.stroke();
+      ctx.strokeStyle="#aeb3bb";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,topY);ctx.lineTo(cx,topY-14);ctx.stroke();
+      ctx.fillStyle="#c8342f";ctx.beginPath();ctx.arc(cx,topY-14,2,0,7);ctx.fill();
+      ctx.fillStyle="#e8c46a";ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText("CN TOWER",cx,baseY+13);ctx.fillText("CN TOWER",cx,baseY+13);return;}
     if(o.type==="cabin"){ctx.fillStyle="rgba(0,0,0,0.25)";ctx.fillRect(px+6,py+h-3,w-4,6);
       ctx.fillStyle="#6e4a2c";ctx.fillRect(px,py+h*0.45,w,h*0.55);
       ctx.strokeStyle="#5a3c22";ctx.lineWidth=1;for(let yy=py+h*0.5;yy<py+h;yy+=6){ctx.beginPath();ctx.moveTo(px,yy);ctx.lineTo(px+w,yy);ctx.stroke();}
@@ -985,8 +1055,9 @@ function drawMinimap(){const W=mmCanvas.width,H=mmCanvas.height;const cx=W/2,cy=
   mmctx.strokeStyle="#7a6647";mmctx.lineWidth=2;mmctx.beginPath();mmctx.arc(cx,cy,R,0,7);mmctx.stroke();
   drawCompass(mmctx,15,15);
   drawHpOrb(mmctx,15,H-18);
-  mmctx.fillStyle="#e8c46a";mmctx.font="bold 11px Trebuchet MS";mmctx.textAlign="center";mmctx.strokeStyle="#000";mmctx.lineWidth=3;
-  mmctx.strokeText(curZone(),cx,H-5);mmctx.fillText(curZone(),cx,H-5);}
+  const zn=curZone();mmctx.fillStyle="rgba(14,17,11,0.86)";mmctx.fillRect(0,H-20,W,20);
+  let fs=13;mmctx.font="bold "+fs+"px Trebuchet MS";while(mmctx.measureText(zn).width>W-14&&fs>8){fs--;mmctx.font="bold "+fs+"px Trebuchet MS";}
+  mmctx.fillStyle="#e8c46a";mmctx.textAlign="center";mmctx.fillText(zn,W/2,H-6);}
 function curZone(){const t=pxTile(state.player.px,state.player.py);for(const z of ZONES)if(t.x>=z.x&&t.x<z.x+z.w&&t.y>=z.y&&t.y<z.y+z.h)return z.name;return "The Wilds";}
 function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
   ctx.fillStyle="rgba(10,12,15,0.72)";roundRect(x-5,y-5,w+10,h+10,7);ctx.fill();
@@ -1000,7 +1071,7 @@ function drawHUD(){const p=state.player;const x=14,y=14,w=182,h=16;
 function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled=false;
   ctx.drawImage(tbuf,cam.x,cam.y,VW,VH,0,0,VW,VH);ctx.imageSmoothingEnabled=true;
   drawWater();drawMarker();
-  const list=[];for(const o of objects)list.push({y:(o.type==="bank"||o.type==="store"||o.type==="hackhq")?(o.ty+o.h)*TILE:(o.ty+1)*TILE,d:()=>drawObject(o)});
+  const list=[];for(const o of objects)list.push({y:BUILDINGS.has(o.type)?(o.ty+o.h)*TILE:(o.ty+1)*TILE,d:()=>drawObject(o)});
   for(const c of crates)list.push({y:(c.ty+1)*TILE,d:()=>drawCrate(c)});
   for(const n of NPCS)list.push({y:n.py+15,d:()=>drawNPC(n)});
   for(const m of monsters){if(m.dead)continue;list.push({y:(m.ty+1)*TILE,d:()=>drawMonster(m)});}
@@ -1045,7 +1116,7 @@ invEl.addEventListener("mouseover",e=>{const s=e.target.closest(".slot");if(s&&s
 invEl.addEventListener("mousemove",e=>{const s=e.target.closest(".slot");if(s&&s.dataset.item)moveTip(e.clientX,e.clientY);else hideTip();});
 invEl.addEventListener("mouseleave",hideTip);
 function renderUI(){
-  skillsEl.innerHTML="";let total=0;const eq=[state.player.weapon,state.player.shield,state.player.head,state.player.body,state.player.legs,state.player.hands];
+  skillsEl.innerHTML="";let total=0;const eq=[state.player.weapon,state.player.shield,state.player.head,state.player.body,state.player.legs,state.player.hands,state.player.ring];
   for(const s of SKILL_DEFS){const xp=(state.skills[s.key]||{}).xp||0,lvl=levelForXp(xp);total+=lvl;
     const cur=xpForLevel(lvl),next=xpForLevel(lvl+1);const pct=lvl>=99?100:(xp-cur)/(next-cur)*100;
     const d=document.createElement("div");d.className="skill";
@@ -1073,6 +1144,7 @@ function renderUI(){
     `<div>Body: <b>${nm(state.player.body)}</b></div>`+
     `<div>Legs: <b>${nm(state.player.legs)}</b></div>`+
     `<div>Hands: <b>${nm(state.player.hands)}</b></div>`+
+    `<div>Ring: <b>${nm(state.player.ring)}</b></div>`+
     `<div>Total Armour: <b>+${equipDef()} def</b></div>`+
     `<div>Health: <b>${Math.ceil(state.player.hp)}/${state.player.maxHp}</b></div>`;
   if(questsEl){questsEl.innerHTML=QUESTS.map(q=>{const done=state.quests&&state.quests[q.id];
@@ -1082,7 +1154,7 @@ function renderUI(){
     return `<div class="skill"><div class="skill-top"><span class="name">${done?"✔ ":""}${q.name}${prog}</span>`+
       `<span class="lvl" style="color:${done?"#8ce39a":started?"#e8c46a":"#7a6a4a"}">${status}</span></div>`+
       `<div class="xp-sub">${q.desc}</div></div>`;}).join("");}
-  if(equipEl){const slots=[["weapon","Weapon"],["shield","Shield"],["head","Head"],["body","Body"],["legs","Legs"],["hands","Hands"]];
+  if(equipEl){const slots=[["weapon","Weapon"],["shield","Shield"],["head","Head"],["body","Body"],["legs","Legs"],["hands","Hands"],["ring","Ring"]];
     equipEl.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:11px;margin-bottom:8px">Worn Equipment</div>`+
       slots.map(([k,lbl])=>{const it=ITEM_DEFS[state.player[k]];const bonus=it?(it.atk?`+${it.atk} atk`:it.def?`+${it.def} def`:""):"";
         return `<div class="mrow"><span class="nm">${lbl}: <b style="color:#e8c46a">${it?it.glyph+" "+it.name:"—"}</b></span>`+(bonus?`<span class="price">${bonus}</span>`:"")+`</div>`;}).join("")+
@@ -1097,7 +1169,7 @@ function closeBuilding(){inBuilding=null;modalEl.classList.remove("show");}
 const SHOP_STOCK=["elixir","nrr","portalStone","spyglass","launchpad","discountScroll","capital","sidekick",
   "snowboard","buyButtonBludgeon","barcodeBlaster","discountDagger","queryLance","webhookWhip",
   "liquidLeather","fraudFilter","gdprGauntlets","oxygenGreaves","trustBattery","polarisPlate",
-  "checkoutCleaver","shopPaySaber","monolith"];
+  "slopGrenade","molotovSloptail","checkoutCleaver","shopPaySaber","monolith"];
 const CRAFT=[
   {out:"elixir",cost:{rawGoods:2}},
   {out:"cookedFish",cost:{rawFish:1,logs:1}},
@@ -1108,8 +1180,9 @@ const CRAFT=[
   {out:"queryLance",cost:{ore:5,loyalty:1}},
   {out:"checkoutCleaver",cost:{ore:8,logs:4,loyalty:2}},
 ];
+const SUPPLY_STOCK=["touchGrassHat","rebellionJersey","gymsharkHoodie","aloPants","mejuriRing"];
 function openBuilding(kind){inBuilding=kind;state.player.path=[];modalEl.classList.add("show");renderModal();
-  log(kind==="bank"?"You step into The Vault.":kind==="hackhq"?"You enter Hack Days HQ — time to build!":"You step into the General Store.","sys");}
+  log(kind==="bank"?"You step into The Vault.":kind==="hackhq"?"You enter Hack Days HQ — time to build!":kind==="supply"?"You step into the Shopify Supply Store — exclusive Toronto merch!":"You step into the General Store.","sys");}
 function mrow(nm,price,fn,label,dis){return `<div class="mrow"><span class="nm">${nm}</span>`+
   (price?`<span class="price">${price}</span>`:"")+`<button onclick="${fn}"${dis?" style='opacity:.45'":""}>${label}</button></div>`;}
 function renderModal(){if(!inBuilding)return;modalGmv.textContent=Math.floor(state.gmv).toLocaleString()+" 🪙";
@@ -1121,9 +1194,10 @@ function renderModal(){if(!inBuilding)return;modalGmv.textContent=Math.floor(sta
       const can=Object.keys(r.cost).every(k=>(state.inv[k]||0)>=r.cost[k]);
       html+=`<div class="mrow"><span class="nm">${it.glyph} <b>${it.name}</b><br><span style="color:#b7a988;font-size:11px">needs ${costStr}</span></span><button onclick="craftItem(${i})"${can?"":" style='opacity:.45'"}>Craft</button></div>`;});
     html+=`</div>`;modalBody.innerHTML=html;return;}
-  if(inBuilding==="store"){modalTitle.textContent="General Store";
-    let buy=`<div class="mcol"><h4>Buy</h4>`;
-    for(const k of SHOP_STOCK){const it=ITEM_DEFS[k];buy+=mrow(it.glyph+" "+it.name,it.buy+" 🪙",`buyItem('${k}')`,"Buy");}buy+=`</div>`;
+  if(inBuilding==="store"||inBuilding==="supply"){const isSupply=inBuilding==="supply";modalTitle.textContent=isSupply?"Shopify Supply Store":"General Store";
+    const stock=isSupply?SUPPLY_STOCK:SHOP_STOCK;
+    let buy=`<div class="mcol"><h4>${isSupply?"Toronto Exclusives":"Buy"}</h4>`;
+    for(const k of stock){const it=ITEM_DEFS[k];buy+=mrow(it.glyph+" "+it.name,it.buy+" 🪙",`buyItem('${k}')`,"Buy");}buy+=`</div>`;
     let sell=`<div class="mcol"><h4>Sell</h4>`;const sellable=inv.filter(e=>ITEM_DEFS[e[0]]&&ITEM_DEFS[e[0]].sell);
     if(!sellable.length)sell+=`<div class="mempty">Nothing to sell.</div>`;
     for(const [k,v] of sellable){const it=ITEM_DEFS[k];sell+=mrow(it.glyph+" "+it.name+" x"+v,it.sell+" 🪙",`sellItem('${k}')`,"Sell");}sell+=`</div>`;
@@ -1183,13 +1257,13 @@ function hideTip(){tipEl.style.display="none";}
 // ============================================================ SAVE / LOAD
 function save(){if(!state)return;try{const p=state.player;localStorage.setItem("shopscape",JSON.stringify({
   player:{px:p.px,py:p.py,hp:p.hp,maxHp:p.maxHp,face:p.face,char:p.char,weapon:p.weapon,shield:p.shield,
-    head:p.head||null,body:p.body||null,legs:p.legs||null,hands:p.hands||null,reveal:!!p.reveal},
+    head:p.head||null,body:p.body||null,legs:p.legs||null,hands:p.hands||null,ring:p.ring||null,reveal:!!p.reveal},
   skills:state.skills,inv:state.inv,gmv:state.gmv,bank:state.bank||{},quests:state.quests||{},granted:state.granted||{},
   kills:state.kills||0,bugKills:state.bugKills||0,scout:!!state.scout,dialogIdx}));}catch(e){}}
 function load(){try{const r=localStorage.getItem("shopscape");if(!r)return null;const o=JSON.parse(r);
   if(!o.player||!o.player.char)return null;dialogIdx=o.dialogIdx||{};const pl=o.player;
   return{player:{px:pl.px,py:pl.py,hp:pl.hp,maxHp:pl.maxHp,path:[],anim:0,face:pl.face||1,atkAnim:0,
-    char:pl.char,weapon:pl.weapon,shield:pl.shield,head:pl.head||null,body:pl.body||null,legs:pl.legs||null,hands:pl.hands||null,reveal:!!pl.reveal},
+    char:pl.char,weapon:pl.weapon,shield:pl.shield,head:pl.head||null,body:pl.body||null,legs:pl.legs||null,hands:pl.hands||null,ring:pl.ring||null,reveal:!!pl.reveal},
     skills:o.skills||{selling:{xp:0},sourcing:{xp:0},mining:{xp:0}},inv:o.inv||{},gmv:o.gmv||0,bank:o.bank||{},
     quests:o.quests||{},granted:o.granted||{},buffs:{},kills:o.kills||0,bugKills:o.bugKills||0,scout:!!o.scout};}catch(e){return null;}}
 setInterval(save,4000);window.addEventListener("beforeunload",save);
