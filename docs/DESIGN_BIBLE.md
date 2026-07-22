@@ -1,4 +1,4 @@
-# Shopify Scape — Design Bible
+# Shopify Scape - Design Bible
 
 A RuneScape clone set in the Shopify world — **now a playable HTML5 game**. The mission — *arm the rebels* — is the merchant's fight against the Empire's Everything Store. This document is the canonical content catalog; entries are marked **(in game)** when shipped or **(planned)** when they're still design/lore.
 
