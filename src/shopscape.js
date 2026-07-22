@@ -1,16 +1,17 @@
 "use strict";
 // ============================================================ CONSTANTS
-const TILE=40, MAP_W=48, MAP_H=38;
-const T={GRASS:0,GRASS2:1,DIRT:2,WATER:3,SAND:4,COBBLE:5,BRIDGE:6,FLOOR:7,SWAMP:8};
+const TILE=40, MAP_W=96, MAP_H=76;
+const T={GRASS:0,GRASS2:1,DIRT:2,WATER:3,SAND:4,COBBLE:5,BRIDGE:6,FLOOR:7,SWAMP:8,SNOW:9,ICE:10,PAVE:11};
 const BLOCK_TERRAIN=new Set([T.WATER,T.SWAMP]);
 // ground base colors (organic noise applied on top)
 const GC={
   [T.GRASS]:[54,84,42],[T.GRASS2]:[46,74,36],[T.DIRT]:[104,84,56],[T.WATER]:[38,92,120],
   [T.SAND]:[150,134,92],[T.COBBLE]:[120,116,120],[T.BRIDGE]:[110,78,46],[T.FLOOR]:[130,120,98],
-  [T.SWAMP]:[40,92,78],
+  [T.SWAMP]:[40,92,78],[T.SNOW]:[224,232,240],[T.ICE]:[176,206,226],[T.PAVE]:[92,94,100],
 };
 const MINI={[T.GRASS]:"#3a5a2a",[T.GRASS2]:"#32502a",[T.DIRT]:"#6b563b",[T.WATER]:"#2f6b8f",
-  [T.SAND]:"#b0a06a",[T.COBBLE]:"#7a7a80",[T.BRIDGE]:"#6b4a2f",[T.FLOOR]:"#8a8078",[T.SWAMP]:"#2f6b5a"};
+  [T.SAND]:"#b0a06a",[T.COBBLE]:"#7a7a80",[T.BRIDGE]:"#6b4a2f",[T.FLOOR]:"#8a8078",[T.SWAMP]:"#2f6b5a",
+  [T.SNOW]:"#dfe6ee",[T.ICE]:"#a9cbe0",[T.PAVE]:"#5c5e64"};
 // ---- seeded PRNG + value noise ----
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function makeNoise(seed,g=48){const r=mulberry32(seed);const grid=new Float32Array(g*g);for(let i=0;i<grid.length;i++)grid[i]=r();
@@ -21,77 +22,88 @@ const rngGlobal=mulberry32(1337);
 function rr(a,b){return a+(b-a)*rngGlobal();}
 // ============================================================ WORLD GEN
 let map=[], blockObj=[], objects=[];
+// 8 regions across a 96x76 world, each with its own biome/content
 const ZONES=[
-  {name:"151 O'Connor Keep",x:0,y:0,w:24,h:20},
-  {name:"The Data Warehouse",x:24,y:0,w:24,h:20},
-  {name:"BFCM Battlefield",x:0,y:20,w:24,h:18},
-  {name:"Fulfillment Fortress",x:24,y:20,w:24,h:18},
+  {name:"151 O'Connor Keep",biome:"town",   x:0, y:0, w:32,h:26},
+  {name:"The Data Warehouse",biome:"cavern", x:32,y:0, w:32,h:26},
+  {name:"Toronto",           biome:"snow",   x:64,y:0, w:32,h:26},
+  {name:"BFCM Battlefield",  biome:"desert", x:0, y:26,w:32,h:25},
+  {name:"New York City",     biome:"city",   x:32,y:26,w:32,h:25},
+  {name:"Fulfillment Fortress",biome:"fortress",x:64,y:26,w:32,h:25},
+  {name:"Liquid Falls",      biome:"water",  x:0, y:51,w:48,h:25},
+  {name:"The Monolith",      biome:"monolith",x:48,y:51,w:48,h:25},
 ];
 function inb(x,y){return x>=0&&y>=0&&x<MAP_W&&y<MAP_H;}
-function carve(x0,y0,x1,y1,t){let x=x0,y=y0;let guard=0;
-  while((x!==x1||y!==y1)&&guard++<400){if(inb(x,y)&&map[y][x]!==T.WATER)map[y][x]=t;
-    if(x<x1)x++;else if(x>x1)x--;else if(y<y1)y++;else if(y>y1)y--;}
-  if(inb(x1,y1)&&map[y1][x1]!==T.WATER)map[y1][x1]=t;}
+function regionAt(x,y){for(const r of ZONES)if(x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h)return r;return ZONES[0];}
+function regionByName(nm){return ZONES.find(z=>z.name===nm);}
 function rect(x,y,w,h,t){for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))map[j][i]=t;}
 function placeBuilding(x,y,w,h,kind,doorDx,doorDy){
   rect(x,y,w,h,T.COBBLE);
-  for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)blockObj[j][i]=1;
+  for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))blockObj[j][i]=1;
   const dx=x+doorDx,dy=y+doorDy; if(inb(dx,dy))blockObj[dy][dx]=0;
   objects.push({type:kind,tx:x,ty:y,w,h,door:{x:dx,y:dy}});
 }
+function placeDeco(x,y,w,h,kind){ // decorative (non-enterable) structure that blocks its footprint
+  for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))blockObj[j][i]=1;
+  objects.push({type:kind,tx:x,ty:y,w,h});
+}
 function genWorld(){
-  const gn=makeNoise(7);
   map=[];blockObj=[];objects=[];
+  const gn=makeNoise(7),wn=makeNoise(53);
   for(let y=0;y<MAP_H;y++){const row=[],brow=[];for(let x=0;x<MAP_W;x++){
-    let t=T.GRASS; if(gn(x/5,y/5)>0.62)t=T.GRASS2;
-    // BFCM battlegrounds = sandy
-    if(y>20&&x<24&&gn(x/4+9,y/4)>0.5)t=T.SAND;
+    const rg=regionAt(x,y);const n=gn(x/5,y/5);let t=T.GRASS;
+    switch(rg.biome){
+      case "town": t=n>0.62?T.GRASS2:T.GRASS;break;
+      case "cavern": t=n>0.52?T.DIRT:T.GRASS2;break;
+      case "snow": t=gn(x/6,y/6)>0.72?T.ICE:T.SNOW;break;
+      case "desert": t=T.SAND;break;
+      case "city": t=n>0.62?T.COBBLE:T.PAVE;break;
+      case "fortress": t=n>0.55?T.DIRT:T.GRASS2;break;
+      case "water": t=wn(x/4,y/4)>0.44?T.WATER:(n>0.6?T.GRASS2:T.GRASS);break;
+      case "monolith": t=n>0.5?T.COBBLE:T.GRASS2;break;
+      default: t=T.GRASS;
+    }
     row.push(t);brow.push(0);}map.push(row);blockObj.push(brow);}
-  // rivers
-  for(let y=0;y<MAP_H;y++)if(!(y===10||y===11))map[y][24]=T.WATER;
-  for(let x=0;x<MAP_W;x++)if(!(x===7||x===8||x===34||x===35))map[20][x]=T.WATER;
-  // town cobble plaza (Shopville)
-  rect(2,2,12,11,T.COBBLE);
-  // paths connecting zones over bridges
-  carve(8,8,24,8,T.DIRT); carve(24,8,24,10,T.DIRT);
-  carve(8,12,8,20,T.DIRT); carve(34,8,42,8,T.DIRT); carve(34,8,34,20,T.DIRT);
-  carve(8,20,8,30,T.DIRT); carve(34,20,34,30,T.DIRT); carve(12,26,34,26,T.DIRT);
-  // bridges (walkable over water)
-  map[10][24]=T.BRIDGE;map[11][24]=T.BRIDGE;
-  map[20][7]=T.BRIDGE;map[20][8]=T.BRIDGE;map[20][34]=T.BRIDGE;map[20][35]=T.BRIDGE;
-  // buildings
+  // 2-wide road grid (bridges over water) — guarantees every region is reachable
+  const setRoad=(x,y)=>{if(inb(x,y))map[y][x]=(map[y][x]===T.WATER||map[y][x]===T.SWAMP)?T.BRIDGE:T.DIRT;};
+  for(const ry of [13,38,63])for(let x=0;x<MAP_W;x++){setRoad(x,ry);setRoad(x,ry+1);}
+  for(const rx of [16,48,80])for(let y=0;y<MAP_H;y++){setRoad(rx,y);setRoad(rx+1,y);}
+  // town plaza + buildings
+  rect(2,2,13,11,T.COBBLE);
   placeBuilding(3,3,4,3,"bank",1,3);
   placeBuilding(9,3,3,3,"store",1,3);
   placeBuilding(4,8,4,3,"hackhq",1,3);
-  // object scatter helper
-  const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;if(map[ty][tx]===T.WATER)return;
-    if(block)blockObj[ty][tx]=1;objects.push({type,tx,ty});};
-  // forest for Sourcing (near town, NE of plaza)
-  const forest=makeNoise(21);
-  for(let y=3;y<18;y++)for(let x=14;x<24;x++){
-    if(map[y][x]===T.DIRT||map[y][x]===T.WATER)continue;
-    if(forest(x/2.5,y/2.5)>0.66)put("tree",x,y,true);
-    else if(forest(x/2+5,y/2)>0.8)put("bush",x,y,false);
-  }
-  // Checkout Caverns (NE) rocks
-  const rockn=makeNoise(41);
-  for(let y=2;y<19;y++)for(let x=26;x<47;x++){
-    if(map[y][x]===T.DIRT||map[y][x]===T.WATER)continue;
-    if(rockn(x/2.2,y/2.2)>0.7)put("rock",x,y,true);}
-  // Battlegrounds rocks/stumps (SW)
-  for(let y=22;y<37;y++)for(let x=1;x<23;x++){
-    if(map[y][x]===T.DIRT||map[y][x]===T.WATER)continue;
-    if(rockn(x/2+3,y/2+2)>0.78)put("rock",x,y,true);}
-  // Partner Plaza (SE) — sparse dead trees around dragon
-  for(let y=22;y<37;y++)for(let x=26;x<47;x++){
-    if(map[y][x]===T.DIRT||map[y][x]===T.WATER)continue;
-    if(forest(x/2+7,y/2+7)>0.8)put("deadtree",x,y,true);}
-  // decorations: lamps by town, signs
-  put("lamp",7,7,true);put("lamp",12,7,true);put("sign",8,14,false);
-  // cursed swamp pond (greenish-blue) — south of town, guarded by the RevOps Oracle
+  // cursed swamp + clean pond (town, south)
   for(const c of [[3,15],[4,15],[5,15],[3,16],[4,16],[5,16],[6,16],[4,17],[5,17]])if(inb(c[0],c[1]))map[c[1]][c[0]]=T.SWAMP;
-  // a clean fishing pond near town
-  for(const c of [[16,15],[17,15],[18,15],[16,16],[17,16],[18,16],[17,17]])if(inb(c[0],c[1])&&map[c[1]][c[0]]!==T.DIRT)map[c[1]][c[0]]=T.WATER;
+  for(const c of [[19,15],[20,15],[21,15],[19,16],[20,16],[21,16],[20,17]])if(inb(c[0],c[1])&&map[c[1]][c[0]]!==T.DIRT&&map[c[1]][c[0]]!==T.BRIDGE)map[c[1]][c[0]]=T.WATER;
+  // Toronto: giant tower + snow cabins
+  placeDeco(78,7,3,4,"tower");
+  placeDeco(70,17,3,2,"cabin");placeDeco(86,18,3,2,"cabin");
+  // New York City: dense skyscrapers (avoid the road lines at x48/49 and y38/39)
+  for(const gy of [29,44])for(const gx of [34,40,54,60])placeDeco(gx,gy,4,4,"sky");
+  // object scatter
+  const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;const t=map[ty][tx];
+    if(t===T.WATER||t===T.SWAMP||t===T.DIRT||t===T.BRIDGE||blockObj[ty][tx])return;
+    if(block)blockObj[ty][tx]=1;objects.push({type,tx,ty});};
+  const scatterRegion=(nm,type,seed,thresh,block,onlyGrass)=>{const rg=regionByName(nm);const n=makeNoise(seed);
+    for(let y=rg.y+1;y<rg.y+rg.h-1;y++)for(let x=rg.x+1;x<rg.x+rg.w-1;x++){
+      if(onlyGrass&&map[y][x]!==T.GRASS&&map[y][x]!==T.GRASS2)continue;
+      if(n(x/2.3,y/2.3)>thresh)put(type,x,y,block);}};
+  scatterRegion("151 O'Connor Keep","tree",21,0.68,true);
+  scatterRegion("151 O'Connor Keep","bush",22,0.86,false);
+  scatterRegion("The Data Warehouse","rock",41,0.66,true);
+  scatterRegion("Toronto","pine",42,0.64,true);
+  scatterRegion("BFCM Battlefield","rock",43,0.78,true);
+  scatterRegion("BFCM Battlefield","deadtree",44,0.88,true);
+  scatterRegion("Fulfillment Fortress","deadtree",45,0.72,true);
+  scatterRegion("Fulfillment Fortress","rock",46,0.82,true);
+  scatterRegion("Liquid Falls","tree",47,0.72,true,true);
+  scatterRegion("The Monolith","rock",48,0.62,true);
+  scatterRegion("The Monolith","deadtree",49,0.86,true);
+  scatterRegion("New York City","lamp",50,0.9,true);
+  // Toronto snowmen + town lamps/sign
+  put("snowman",74,10,true);put("snowman",84,13,true);put("snowman",90,9,true);
+  put("lamp",7,7,true);put("lamp",13,7,true);put("sign",8,14,false);
 }
 genWorld();
 function walkable(tx,ty){return inb(tx,ty)&&!BLOCK_TERRAIN.has(map[ty][tx])&&!blockObj[ty][tx];}
@@ -132,6 +144,13 @@ function buildTerrain(){
         g.beginPath();g.arc(ox+rnd()*TILE,oy+rnd()*TILE,1.6,0,7);g.fill();}
     }else if(t===T.SAND){
       for(let i=0;i<6;i++){g.fillStyle="rgba(90,78,48,0.5)";g.fillRect(ox+rnd()*TILE,oy+rnd()*TILE,1.5,1.5);}
+    }else if(t===T.SNOW){
+      for(let i=0;i<5;i++){g.fillStyle=rnd()>0.5?"rgba(255,255,255,0.8)":"rgba(180,200,220,0.5)";g.beginPath();g.arc(ox+rnd()*TILE,oy+rnd()*TILE,1+rnd(),0,7);g.fill();}
+    }else if(t===T.ICE){
+      g.strokeStyle="rgba(255,255,255,0.35)";g.lineWidth=1;g.beginPath();g.moveTo(ox+rnd()*TILE,oy);g.lineTo(ox+rnd()*TILE,oy+TILE);g.stroke();
+    }else if(t===T.PAVE){
+      g.strokeStyle="rgba(30,30,34,0.5)";g.lineWidth=1;g.strokeRect(ox+2,oy+2,TILE-4,TILE-4);
+      g.beginPath();g.moveTo(ox,oy+TILE/2);g.lineTo(ox+TILE,oy+TILE/2);g.stroke();
     }else if(t===T.COBBLE){
       for(let i=0;i<3;i++)for(let j=0;j<3;j++){g.strokeStyle="rgba(20,20,24,0.5)";g.lineWidth=1;
         g.strokeRect(ox+i*TILE/3+1,oy+j*TILE/3+1,TILE/3-2,TILE/3-2);}
@@ -148,9 +167,12 @@ function buildTerrain(){
   // minimap buffer
   const mg=minibuf.getContext("2d");
   for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){mg.fillStyle=MINI[map[y][x]];mg.fillRect(x,y,1,1);}
-  for(const o of objects){if(o.type==="tree"||o.type==="deadtree"){mg.fillStyle="#1f3d1a";mg.fillRect(o.tx,o.ty,1,1);}
+  for(const o of objects){if(o.type==="tree"||o.type==="deadtree"||o.type==="pine"){mg.fillStyle="#1f3d1a";mg.fillRect(o.tx,o.ty,1,1);}
     else if(o.type==="rock"){mg.fillStyle="#555";mg.fillRect(o.tx,o.ty,1,1);}
-    else if(o.type==="bank"||o.type==="store"||o.type==="hackhq"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
+    else if(o.type==="snowman"){mg.fillStyle="#eef";mg.fillRect(o.tx,o.ty,1,1);}
+    else if(o.type==="bank"||o.type==="store"||o.type==="hackhq"||o.type==="cabin"){mg.fillStyle="#caa14a";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
+    else if(o.type==="sky"){mg.fillStyle="#7f93b8";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}
+    else if(o.type==="tower"){mg.fillStyle="#d0d4dc";mg.fillRect(o.tx,o.ty,o.w||1,o.h||1);}}
 }
 buildTerrain();
 for(const o of objects)if(o.type==="tree"||o.type==="deadtree"){o.felled=false;o.hp=2;o.respawnAt=0;}
@@ -221,7 +243,7 @@ const ITEM_DEFS={
   nrr:{name:"NRR Elixir",glyph:"🧉",sell:40,heal:30,buy:120,over:1.3,desc:"Net Revenue Retention brew — restores 30 health and can push you past 100% (net expansion)."},
   buyButton:{name:"Buy Button Blade",glyph:"🗡️",kind:"weapon",atk:9,spd:820,tier:"Plus",strongVs:["physical"],weakVs:[],sell:400,buy:600,desc:"The legendary one-click blade dropped by the Churn Dragon. Balanced, heavy, dependable."},
   // starter weapons / shields (one set per character)
-  waterStaff:{name:"Water Staff",glyph:"🔱",kind:"weapon",atk:6,spd:780,tier:"Shopify",strongVs:["beast","undead"],weakVs:["ghost"],sell:120,desc:"Channels Liquid into a soaking torrent. Strong vs beasts & undead; fizzles against ghosts."},
+  waterStaff:{name:"Water Staff",glyph:"🔱",kind:"weapon",atk:6,spd:780,tier:"Shopify",ranged:true,range:5,strongVs:["beast","undead"],weakVs:["ghost"],sell:120,desc:"Channels Liquid into a soaking torrent — a RANGED staff that hurls blue water orbs. Strong vs beasts & undead; fizzles against ghosts."},
   blastShield:{name:"Blast Shield",glyph:"🛡️",kind:"shield",def:6,sell:100,desc:"Absorbs one big burst hit and vents the overflow. Built to survive traffic spikes."},
   whiteGloves:{name:"White Gloves",glyph:"🧤",kind:"weapon",atk:5,spd:380,tier:"Basic",strongVs:["physical","undead"],weakVs:["ghost","beast"],sell:90,desc:"White-glove-service jabs — blazing fast, low per-hit. Shreds physical foes; whiffs on ghosts & beasts."},
   moneyShield:{name:"Money Shield",glyph:"💰",kind:"shield",def:5,sell:110,desc:"A wall of GMV coins. Blocked hits are partly converted back into gold."},
@@ -291,18 +313,26 @@ const MT={
   bug:{name:"Bug",class:"physical",hp:8,dmg:1,xp:14,gmv:3,respawn:12,drop:null,r:13,col:"#7a9e3a",spd:135,aggro:2,style:"hop"},
 };
 function fix(list){return list.map(o=>{const a=nearestWalkable(o.tx,o.ty)||{x:o.tx,y:o.ty};return{...o,tx:a.x,ty:a.y};});}
-let crates=fix([[15,6],[18,9],[21,12],[16,14],[19,4],[22,7]].map(c=>({tx:c[0],ty:c[1],cd:0})));
-let monsters=fix([
-  ["slime",28,8],["slime",32,12],["wraith",30,6],["wraith",38,5],["wraith",44,11],
-  ["skeleton",40,6],["skeleton",44,14],["lich",45,3],
-  ["cart",6,24],["cart",10,28],["cart",4,33],["cartGoblin",12,28],["cartGoblin",6,30],
-  ["goblin",14,30],["goblin",9,34],
-  ["phantom",30,24],["phantom",40,29],["phantom",45,34],["dragon",33,31],["bezos",44,34],
-  ["bug",13,13],["bug",16,11],["bug",19,13],["bug",21,10],["bug",15,17],["bug",18,18],["bug",11,15],["bug",22,15],
-].map(m=>({type:m[0],tx:m[1],ty:m[2]}))).map(m=>({...m,px:m.tx*TILE+TILE/2,py:m.ty*TILE+TILE/2,
+let crates=fix([[16,6],[19,9],[22,12],[17,14],[20,4],[23,7],[38,30],[45,46],[56,44],[41,33],[8,60],[14,66]].map(c=>({tx:c[0],ty:c[1],cd:0})));
+function scatterMobs(nm,types,seed,thresh,max){const rg=regionByName(nm);const n=makeNoise(seed);const out=[];let c=0;
+  for(let y=rg.y+2;y<rg.y+rg.h-2&&c<max;y++)for(let x=rg.x+2;x<rg.x+rg.w-2&&c<max;x++){
+    if(!walkable(x,y))continue;if(n(x/3,y/3)>thresh){out.push({type:types[(rngGlobal()*types.length)|0],tx:x,ty:y});c++;}}
+  return out;}
+let monData=[]
+  .concat(scatterMobs("151 O'Connor Keep",["bug","bug","cart"],101,0.80,12))
+  .concat(scatterMobs("The Data Warehouse",["slime","skeleton","wraith"],102,0.82,9))
+  .concat(scatterMobs("Toronto",["wraith","slime"],103,0.82,8))
+  .concat(scatterMobs("BFCM Battlefield",["cart","cartGoblin","goblin"],104,0.80,9))
+  .concat(scatterMobs("New York City",["cartGoblin","goblin","phantom"],105,0.83,7))
+  .concat(scatterMobs("Fulfillment Fortress",["phantom","goblin"],106,0.83,6))
+  .concat(scatterMobs("Liquid Falls",["cart","goblin"],107,0.85,5))
+  .concat(scatterMobs("The Monolith",["skeleton","skeleton","wraith"],108,0.80,9));
+(function(){const ff=regionByName("Fulfillment Fortress");monData.push({type:"dragon",tx:ff.x+16,ty:ff.y+12},{type:"bezos",tx:ff.x+24,ty:ff.y+18});
+  const mo=regionByName("The Monolith");monData.push({type:"lich",tx:mo.x+24,ty:mo.y+12});})();
+let monsters=fix(monData).map(m=>({...m,px:m.tx*TILE+TILE/2,py:m.ty*TILE+TILE/2,
   home:{x:m.tx,y:m.ty},path:[],aggro:false,wanderCd:rr(500,3000),aiCd:0,atkAnim:0,atkCd:0,face:1,
   hp:MT[m.type].hp,maxHp:MT[m.type].hp,dead:false,respawnAt:0,flash:0}));
-const NPCS=fix([
+const NAMED_NPCS=[
   {tx:11,ty:9,name:"Harley the Hype",sprite:"harley",grant:"fishingRod",lines:[
     "YO! Welcome to 151 O'Connor Keep! Every empire starts with a single sale — LET'S GOOO!",
     "Chop crates & fell trees for Sourcing, mine ore for Data Mining, and batter the beasts of commerce for Checkout Combat.",
@@ -322,7 +352,13 @@ const NPCS=fix([
     "Memory-safe. Never segfaults. You'll see."]},
   {tx:8,ty:16,name:"The RevOps Oracle",sprite:"oracle",lines:[
     "The sacred mart says: use governed data, brave ranger. The raw-table swamp is cursed."]},
-]).map(n=>({...n,px:n.tx*TILE+TILE/2,py:n.ty*TILE+TILE/2,home:{x:n.tx,y:n.ty},path:[],wanderCd:rr(800,3500),face:1}));
+];
+const CITIZENS=(function(){const rg=regionByName("New York City");const n=makeNoise(77);const out=[];let c=0;
+  const lines=["Big city, big dreams!","Have you seen the giant tower up in Toronto?","GMV's booming down here!","Mind the wandering carts.","I heart NYC — New Yielding Commerce.","Coffee first, then conversions."];
+  for(let y=rg.y+2;y<rg.y+rg.h-2&&c<10;y++)for(let x=rg.x+2;x<rg.x+rg.w-2&&c<10;x++){
+    if(!walkable(x,y))continue;if(n(x/3,y/3)>0.85){out.push({tx:x,ty:y,name:"Citizen",sprite:"citizen",v:(rngGlobal()*5)|0,lines:[lines[(rngGlobal()*lines.length)|0]]});c++;}}
+  return out;})();
+const NPCS=fix(NAMED_NPCS.concat(CITIZENS)).map(n=>({...n,px:n.tx*TILE+TILE/2,py:n.ty*TILE+TILE/2,home:{x:n.tx,y:n.ty},path:[],wanderCd:rr(800,3500),face:1}));
 const DEFAULT=(charKey)=>{const c=CHARS[charKey]||CHARS.shoppy;const inv={};inv[c.weapon]=1;inv[c.shield]=1;if(c.body)inv[c.body]=1;inv.elixir=3;inv.portalStone=1;
   return{player:{px:8*TILE+20,py:8*TILE+20,hp:30,maxHp:30,path:[],anim:0,face:1,atkAnim:0,
     char:charKey||"shoppy",weapon:c.weapon,shield:c.shield,head:null,body:c.body||null,legs:null,hands:null},
@@ -387,6 +423,15 @@ function buildCampfire(){const p=state.player;const pt=pxTile(p.px,p.py);let tx=
   if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y+1;}
   if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y;}
   objects.push({type:"campfire",tx,ty,burnUntil:Date.now()+120000});}
+// ---- ranged water orbs ----
+let orbs=[];
+function spawnOrb(x,y,tx,ty){orbs.push({x,y,tx,ty,t:0});}
+function updateOrbs(dt){for(const o of orbs)o.t+=dt/200;orbs=orbs.filter(o=>o.t<1.05);}
+function drawOrbs(){for(const o of orbs){const x=o.x+(o.tx-o.x)*o.t,y=o.y+(o.ty-o.y)*o.t-Math.sin(o.t*Math.PI)*10;const sx=SX(x),sy=SY(y);
+  const g=ctx.createRadialGradient(sx,sy,0,sx,sy,9);g.addColorStop(0,"#eaf7ff");g.addColorStop(0.5,"#4aa0e0");g.addColorStop(1,"rgba(60,150,220,0)");
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,9,0,7);ctx.fill();
+  ctx.fillStyle="#cfeaff";ctx.beginPath();ctx.arc(sx,sy,3,0,7);ctx.fill();
+  spawnPart(x,y,(Math.random()-0.5)*6,10,220,"#7ec8f0",1.1,0);}}
 // ---- Tier-1 atmosphere: particles, day/night, lighting, shake ----
 let worldClock=0,parts=[],shake=0;
 const ZONE_TINT={"151 O'Connor Keep":"rgba(255,228,150,0.05)","The Data Warehouse":"rgba(120,160,255,0.06)","BFCM Battlefield":"rgba(255,150,70,0.06)","Fulfillment Fortress":"rgba(200,70,70,0.07)"};
@@ -423,7 +468,10 @@ window.addEventListener("resize",resize);
 function goTo(tx,ty){const pt=pxTile(state.player.px,state.player.py);const p=findPath(pt.x,pt.y,tx,ty);state.player.path=p||[];}
 function setPending(kind,ref){pending={kind,ref};const pt=pxTile(state.player.px,state.player.py);
   const cheb=Math.max(Math.abs(pt.x-ref.tx),Math.abs(pt.y-ref.ty));
-  if(cheb<=1){state.player.path=[];return;}
+  const w=ITEM_DEFS[state.player.weapon]||{};const rng=(kind==="monster"&&w.ranged)?(w.range||5):1;
+  if(cheb<=rng){state.player.path=[];return;}
+  if(kind==="monster"&&w.ranged){const dx=Math.sign(pt.x-ref.tx),dy=Math.sign(pt.y-ref.ty);
+    const a=nearestWalkable(ref.tx+(dx||1)*rng,ref.ty+dy*rng)||adjacentTile(ref.tx,ref.ty,pt.x,pt.y);if(a)goTo(a.x,a.y);return;}
   const adj=adjacentTile(ref.tx,ref.ty,pt.x,pt.y);if(adj)goTo(adj.x,adj.y);}
 canvas.addEventListener("click",e=>{
   const r=canvas.getBoundingClientRect();const wx=e.clientX-r.left+cam.x,wy=e.clientY-r.top+cam.y;
@@ -471,7 +519,9 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
   if(pending.kind==="monster"&&ref.dead){pending=null;return;}
   if(p.path&&p.path.length)return;
   const pt=pxTile(p.px,p.py);const cheb=Math.max(Math.abs(pt.x-ref.tx),Math.abs(pt.y-ref.ty));
-  if(cheb>1){const adj=adjacentTile(ref.tx,ref.ty,pt.x,pt.y);if(adj)goTo(adj.x,adj.y);else pending=null;return;}
+  const wpn=ITEM_DEFS[state.player.weapon]||{};const atkRange=(pending.kind==="monster"&&wpn.ranged)?(wpn.range||5):1;
+  if(cheb>atkRange){if(pending.kind==="monster"&&wpn.ranged){const dx=Math.sign(pt.x-ref.tx),dy=Math.sign(pt.y-ref.ty);const a=nearestWalkable(ref.tx+(dx||1)*atkRange,ref.ty+dy*atkRange)||adjacentTile(ref.tx,ref.ty,pt.x,pt.y);if(a)goTo(a.x,a.y);else pending=null;}
+    else{const adj=adjacentTile(ref.tx,ref.ty,pt.x,pt.y);if(adj)goTo(adj.x,adj.y);else pending=null;}return;}
   p.face=(ref.tx*TILE+TILE/2)<p.px?-1:1;
   if(pending.kind==="npc"){talk(ref);pending=null;return;}
   if(pending.kind==="building"){openBuilding(ref.bkind);pending=null;return;}
@@ -499,6 +549,7 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     log("Select a <b>Raw Fish</b> in your inventory, then click the campfire to cook it.","");pending=null;return;}
   if(pending.kind==="monster"){const m=ref,d=MT[m.type];const w=ITEM_DEFS[state.player.weapon]||{};const spd=w.spd||640;
     if(now-lastAction<spd)return;lastAction=now;p.atkAnim=ATK_FRAMES;
+    if(w.ranged){spawnOrb(p.px,p.py-8,m.px,m.py);p.face=(m.px<p.px)?-1:1;}
     const lvl=levelForXp(state.skills.selling.xp);let dmg=1+Math.floor(Math.random()*(2+Math.floor(lvl*0.6)+(w.atk||0)));
     let crit=false;
     if(w.strongVs&&w.strongVs.includes(d.class))dmg=Math.round(dmg*1.5);
@@ -551,7 +602,7 @@ function npcTick(n,dt){if(pending&&pending.kind==="npc"&&pending.ref===n){n.path
     const a=nearestWalkable(n.home.x+((rr(0,5))|0)-2,n.home.y+((rr(0,5))|0)-2);
     if(a)n.path=findPath(n.tx,n.ty,a.x,a.y)||[];}}
 function worldTick(dt){const now=Date.now();
-  worldClock+=dt;updateParticles(dt);if(shake>0)shake=Math.max(0,shake-dt*0.03);
+  worldClock+=dt;updateParticles(dt);updateOrbs(dt);if(shake>0)shake=Math.max(0,shake-dt*0.03);
   for(const c of crates)if(c.cd>0)c.cd-=dt;
   for(const o of objects)if(o.felled&&now>=o.respawnAt){const pt=pxTile(state.player.px,state.player.py);
     if(pt.x===o.tx&&pt.y===o.ty){o.respawnAt=now+1500;continue;}o.felled=false;o.hp=2;blockObj[o.ty][o.tx]=1;}
@@ -804,6 +855,8 @@ function drawNPC(n){const sx=SX(n.px),sy=SY(n.py);if(sx<-60||sx>VW+60||sy<-60||s
     ctx.fillStyle="#e8d24a";ctx.beginPath();ctx.arc(0,-19,1.4,0,7);ctx.fill();
     ctx.strokeStyle="#6b4a2f";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(f*9,-16);ctx.lineTo(f*9,13);ctx.stroke();
     ctx.fillStyle="#7ad0ff";ctx.beginPath();ctx.arc(f*9,-18,3,0,7);ctx.fill();ctx.fillStyle="#123";ctx.fillRect(f>0?1:-3,-13,2,2);}
+  else if(n.sprite==="citizen"){const cols=["#c85a5a","#5a7dc8","#c8a24a","#5aa06a","#a05ac8"];ctx.fillStyle=cols[(n.v||0)%5];roundRect(-7,-6,14,17,4);ctx.fill();
+    head();ctx.fillStyle=["#4a3421","#2a2a2a","#5a4632","#7a5a3a"][(n.v||0)%4];ctx.beginPath();ctx.arc(0,-15,6,Math.PI,0);ctx.fill();eye();}
   else{ctx.fillStyle="#6a3fa0";roundRect(-8,-6,16,18,4);ctx.fill();head();eye();}
   ctx.restore();
   ctx.fillStyle="#e8c46a";ctx.font="bold 10px Trebuchet MS";ctx.textAlign="center";
@@ -832,6 +885,26 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;
     const lbl={bank:"THE VAULT",store:"SHOP",hackhq:"HACK DAYS HQ"}[o.type];
     ctx.strokeText(lbl,px+w/2,wallY-4);ctx.fillText(lbl,px+w/2,wallY-4);return;}
+  if(o.type==="tower"||o.type==="cabin"||o.type==="sky"){const px=SX(o.tx*TILE),py=SY(o.ty*TILE);const w=o.w*TILE,h=o.h*TILE;
+    if(o.type==="tower"){const cx=px+w/2,topY=py-h*2.4;
+      ctx.fillStyle="rgba(0,0,0,0.28)";ctx.fillRect(px+6,py+h-3,w-4,7);
+      ctx.fillStyle="#b8bcc4";ctx.beginPath();ctx.moveTo(cx-9,py+h);ctx.lineTo(cx-4,topY+30);ctx.lineTo(cx+4,topY+30);ctx.lineTo(cx+9,py+h);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#9aa0aa";ctx.beginPath();ctx.moveTo(cx,py+h);ctx.lineTo(cx+4,topY+30);ctx.lineTo(cx+9,py+h);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#c8ccd4";ctx.beginPath();ctx.ellipse(cx,topY+30,15,8,0,0,7);ctx.fill();
+      ctx.fillStyle="#7ad0ff";ctx.fillRect(cx-13,topY+27,26,5);
+      ctx.strokeStyle="#8a8f98";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,topY+22);ctx.lineTo(cx,topY-16);ctx.stroke();
+      ctx.fillStyle="#c8342f";ctx.beginPath();ctx.arc(cx,topY-16,2,0,7);ctx.fill();
+      ctx.fillStyle="#e8c46a";ctx.font="bold 11px Trebuchet MS";ctx.textAlign="center";ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.strokeText("TORONTO TOWER",cx,py+h+13);ctx.fillText("TORONTO TOWER",cx,py+h+13);return;}
+    if(o.type==="cabin"){ctx.fillStyle="rgba(0,0,0,0.25)";ctx.fillRect(px+6,py+h-3,w-4,6);
+      ctx.fillStyle="#6e4a2c";ctx.fillRect(px,py+h*0.45,w,h*0.55);
+      ctx.strokeStyle="#5a3c22";ctx.lineWidth=1;for(let yy=py+h*0.5;yy<py+h;yy+=6){ctx.beginPath();ctx.moveTo(px,yy);ctx.lineTo(px+w,yy);ctx.stroke();}
+      ctx.fillStyle="#eef2f6";ctx.beginPath();ctx.moveTo(px-5,py+h*0.47);ctx.lineTo(px+w/2,py-4);ctx.lineTo(px+w+5,py+h*0.47);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#3a2c1a";ctx.fillRect(px+w/2-5,py+h-12,10,12);ctx.fillStyle="#ffd166";ctx.fillRect(px+4,py+h*0.56,6,6);return;}
+    const th=h*1.8,ty2=py+h-th;
+    ctx.fillStyle="rgba(0,0,0,0.3)";ctx.fillRect(px+6,py+h-3,w-4,7);
+    ctx.fillStyle="#4a5568";ctx.fillRect(px,ty2,w,th);ctx.fillStyle="#3a4454";ctx.fillRect(px,ty2,4,th);ctx.fillRect(px+w-4,ty2,4,th);
+    for(let yy=ty2+7;yy<py+h-6;yy+=9)for(let xx=px+6;xx<px+w-6;xx+=8){ctx.fillStyle=((xx*3+yy*5)|0)%17<9?"#9fd0ff":"#2b3547";ctx.fillRect(xx,yy,5,6);}
+    ctx.fillStyle="#2b3547";ctx.fillRect(px+w/2-3,ty2-6,6,8);return;}
   if(sx<-60||sx>VW+60||sy<-60||sy>VH+60)return;
   if(o.type==="tree"){shadow(sx,sy-2,15);
     if(o.felled){ctx.fillStyle="#5b3f22";ctx.beginPath();ctx.ellipse(sx,sy-3,8,4,0,0,7);ctx.fill();
@@ -848,6 +921,12 @@ function drawObject(o){const cx=o.tx*TILE+TILE/2;let cy=o.ty*TILE+TILE;const sx=
     ctx.fillStyle=dep?"#3a3c42":"#565860";ctx.beginPath();ctx.moveTo(sx+2,sy-15);ctx.lineTo(sx+12,sy-9);ctx.lineTo(sx+13,sy);ctx.lineTo(sx+3,sy-3);ctx.closePath();ctx.fill();
     if(!dep){ctx.fillStyle="#e8c46a";ctx.beginPath();ctx.arc(sx-3,sy-7,1.5,0,7);ctx.arc(sx+5,sy-9,1.4,0,7);ctx.fill();}}
   else if(o.type==="bush"){shadow(sx,sy,11);ctx.fillStyle="#2f5a2a";ctx.beginPath();ctx.arc(sx-6,sy-5,8,0,7);ctx.arc(sx+6,sy-5,8,0,7);ctx.arc(sx,sy-9,9,0,7);ctx.fill();}
+  else if(o.type==="pine"){shadow(sx,sy-2,13);ctx.fillStyle="#5b3f22";ctx.fillRect(sx-3,sy-8,6,8);
+    ctx.fillStyle="#264a30";for(let i=0;i<3;i++){const yy=sy-6-i*8,ww=13-i*3;ctx.beginPath();ctx.moveTo(sx-ww,yy);ctx.lineTo(sx,yy-13);ctx.lineTo(sx+ww,yy);ctx.closePath();ctx.fill();}
+    ctx.fillStyle="rgba(255,255,255,0.85)";for(let i=0;i<3;i++){const yy=sy-6-i*8,ww=13-i*3;ctx.beginPath();ctx.moveTo(sx-ww,yy);ctx.lineTo(sx-ww+5,yy-2.5);ctx.lineTo(sx,yy-13);ctx.closePath();ctx.fill();}}
+  else if(o.type==="snowman"){shadow(sx,sy,11);ctx.fillStyle="#eef4fa";ctx.beginPath();ctx.arc(sx,sy-4,8,0,7);ctx.fill();ctx.beginPath();ctx.arc(sx,sy-16,6,0,7);ctx.fill();
+    ctx.fillStyle="#222";ctx.beginPath();ctx.arc(sx-2,sy-17,1,0,7);ctx.arc(sx+2,sy-17,1,0,7);ctx.fill();ctx.fillStyle="#e8732a";ctx.fillRect(sx,sy-16,4,1.6);
+    ctx.fillStyle="#c8342f";ctx.fillRect(sx-6,sy-23,12,3);ctx.fillRect(sx-2,sy-26,4,4);}
   else if(o.type==="lamp"){shadow(sx,sy,6);ctx.strokeStyle="#333";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,sy-22);ctx.stroke();
     ctx.fillStyle="rgba(255,220,120,0.9)";ctx.beginPath();ctx.arc(sx,sy-24,5,0,7);ctx.fill();}
   else if(o.type==="sign"){shadow(sx,sy,7);ctx.fillStyle="#6b4a2a";ctx.fillRect(sx-2,sy-14,4,14);ctx.fillStyle="#8a6a3a";ctx.fillRect(sx-11,sy-24,22,12);}
@@ -920,7 +999,7 @@ function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled
   for(const m of monsters){if(m.dead)continue;list.push({y:(m.ty+1)*TILE,d:()=>drawMonster(m)});}
   const p=state.player;list.push({y:p.py+15,d:()=>drawPlayer(p)});
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
-  drawCompanion();drawScout();drawAtmosphere();drawParticles();drawPlayerSay();drawFX();drawCurse();drawHUD();drawMinimap();}
+  drawCompanion();drawScout();drawAtmosphere();drawParticles();drawOrbs();drawPlayerSay();drawFX();drawCurse();drawHUD();drawMinimap();}
 function drawPlayerSay(){const p=state.player;if(!(p.chatUntil>Date.now()))return;const sx=SX(p.px),sy=SY(p.py)-44;
   ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";const w=ctx.measureText(p.chatText).width+14;
   ctx.fillStyle="rgba(20,17,11,0.9)";roundRect(sx-w/2,sy-14,w,20,5);ctx.fill();ctx.strokeStyle="#e8c46a";ctx.lineWidth=1;ctx.stroke();
