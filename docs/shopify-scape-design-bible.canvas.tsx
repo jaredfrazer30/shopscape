@@ -86,11 +86,11 @@ const characters: {
     name: "River",
     color: "blue",
     appearance:
-      "Long blue hair; an internal-Shopify-tool, agent-mage vibe. Calm, precise, and always three queries ahead.",
+      "Our resident expert for all things Shopify — long blue hair, a Water Staff, and a penchant for being all-knowing. How can one say she's not alive?!",
     weapon: {
       name: "Water Staff",
       effect:
-        "Channels a torrent of Liquid — ranged magic that soaks and slows a whole group before they reach you.",
+        "A RANGED staff that hurls blue water orbs from afar. Strong vs beasts & undead; fizzles on ghosts.",
     },
     shield: {
       name: "Blast Shield",
@@ -102,7 +102,7 @@ const characters: {
     name: "Shoppy",
     color: "green",
     appearance:
-      "The green shopping-bag mascot with arms and legs. Eager, bouncy, and the friendly face of every first sale.",
+      "Our tried-and-true mascot and a true OG — the green shopping bag with arms and legs. Internationally known, locally respected.",
     weapon: {
       name: "White Gloves",
       effect:
@@ -118,7 +118,7 @@ const characters: {
     name: "Lord Shoppington",
     color: "yellow",
     appearance:
-      "A fancy shopping bag with a monocle and top hat. Refined, enterprise-grade, and quietly loaded.",
+      "A fancy shopping bag in a monocle and top hat. Some say born with money, some say self-made — either way, a trillion reasons to love him.",
     weapon: {
       name: "Fancy Cane",
       effect:
@@ -128,6 +128,21 @@ const characters: {
       name: "Trillion Dollar Shield",
       effect:
         "The realm's ultimate bulwark, plated in a trillion in cumulative GMV. Near-impenetrable, befitting a Lord.",
+    },
+  },
+  {
+    name: "Sidekick",
+    color: "purple",
+    appearance:
+      "Your favorite cheerful AI familiar — purple eyemask, Robin Hood silhouette. Whispers growth tips, automates the mundane, and gently asks if you've considered improving your Conversion Rate.",
+    weapon: {
+      name: "Longbow",
+      effect:
+        "An elegant RANGED bow that executes queries with precision — fires arrows from up to 6 tiles.",
+    },
+    shield: {
+      name: "SnowDevil Shield",
+      effect: "The OG order of protection — built for speed, built to last.",
     },
   },
 ];
@@ -225,7 +240,25 @@ const weapons: { name: string; type: string; tier: Tier; effect: string }[] = [
     type: "Melee",
     tier: "Plus",
     effect:
-      "Tobi's legendary weapon, hand-forged in Rust. Blazing fast, memory-safe, never segfaults. Drops only in the Snowdevil Cave.",
+      "Tobi's legendary weapon, hand-forged in Rust. Blazing fast, memory-safe, never segfaults. Earned by squashing 25 Bugs for Tobi.",
+  },
+  {
+    name: "Longbow",
+    type: "Ranged",
+    tier: "Advanced",
+    effect: "Sidekick's signature bow — fires arrows from range (6 tiles). Strong vs beasts & undead.",
+  },
+  {
+    name: "Slop Grenade",
+    type: "Ranged · Explosive",
+    tier: "Advanced",
+    effect: "A lobbed bomb that detonates on impact — AoE blast damages everything near the target. Sold at the General Store.",
+  },
+  {
+    name: "Molotov Sloptail",
+    type: "Ranged · Explosive",
+    tier: "Advanced",
+    effect: "A flaming bottle that bursts into a fiery explosion around the target. Strong vs beasts & ghosts.",
   },
 ];
 
@@ -300,6 +333,36 @@ const armor: { name: string; slot: string; tier: Tier; effect: string }[] = [
     slot: "Head",
     tier: "Plus",
     effect: "Legendary. +GMV find, boosted drop rate, and every NPC bows.",
+  },
+  {
+    name: "Touch Grass Hat",
+    slot: "Head",
+    tier: "Shopify",
+    effect: "Green cap — a Shopify Supply Store (Toronto) exclusive. Reminds you to log off and touch grass.",
+  },
+  {
+    name: "Rebellion Jersey",
+    slot: "Body",
+    tier: "Advanced",
+    effect: "White with a black stripe — Supply Store exclusive, worn by those who arm the rebels.",
+  },
+  {
+    name: "GymShark Hoodie",
+    slot: "Body",
+    tier: "Advanced",
+    effect: "Cozy grey hoodie — Supply Store exclusive. +defence, +gains.",
+  },
+  {
+    name: "Alo Yoga Pants",
+    slot: "Legs",
+    tier: "Advanced",
+    effect: "Green performance leggings — Supply Store exclusive. Flexible and forgiving.",
+  },
+  {
+    name: "Mejuri Ring",
+    slot: "Ring",
+    tier: "Plus",
+    effect: "Tasteful gold ring worn on the hand (Ring slot) — Supply Store exclusive. A little extra GMV find.",
   },
 ];
 
@@ -379,8 +442,22 @@ const items: { name: string; type: string; effect: string }[] = [
   {
     name: "Sidekick Lamp",
     type: "Companion",
-    effect: "Rub for a hint — summons your AI familiar to fight and auto-loot beside you.",
+    effect: "Rub for a hint — summons your AI familiar to fight beside you for 30s.",
   },
+  {
+    name: "Fishing Rod",
+    type: "Tool",
+    effect: "From Harley the Hype. Click any body of water to fish and train the Fishing skill.",
+  },
+  { name: "Raw Fish", type: "Resource", effect: "A fresh catch — select it, then click a campfire to cook it." },
+  { name: "Cooked Fish", type: "Heal", effect: "Grilled on a Merchant Fire; restores Health Score when eaten." },
+  { name: "Merchant Fire", type: "Utility", effect: "From the CSM. Combine with Product Logs to build a campfire." },
+  { name: "Bad Data", type: "Cursed", effect: "Dredged from the cursed swamp. Cooking or eating it inflicts the SDP Data Restriction Curse (5-min visibility loss)." },
+  { name: "GMV Ore", type: "Resource", effect: "Mined from rocks with Data Mining. Refine or sell." },
+  { name: "Product Logs", type: "Resource", effect: "Chopped from Product Trees; used to build campfires and craft at Hack Days HQ." },
+  { name: "Summit Swag", type: "Rare drop", effect: "~1 in 20 kills. Sells for 100 GMV." },
+  { name: "Ham", type: "Heal drop", effect: "~1 in 25 kills. Eat to restore 20 Health Score." },
+  { name: "Scope Change", type: "Epic drop", effect: "~1 in 100 kills. Sells for 250 GMV." },
 ];
 
 const bestiary: {
@@ -458,8 +535,26 @@ const bestiary: {
   {
     name: "Legacy Code Lich",
     threat: "Boss-tier",
-    location: "Monolith depths",
-    notes: "Ancient, powerful, load-bearing. Nobody remembers who summoned it.",
+    location: "The Monolith",
+    notes: "Ancient, powerful, load-bearing. A region boss guarding the undead dungeon.",
+  },
+  {
+    name: "Bug",
+    threat: "Low",
+    location: "151 O'Connor Keep",
+    notes: "Little green critter that respawns fast. Squash 25 of them for Tobi to earn the Rust Blade.",
+  },
+  {
+    name: "Openclaw",
+    threat: "Medium",
+    location: "New York City",
+    notes: "A red lobster that skitters out whenever you talk to Claude. Drops Summit Swag.",
+  },
+  {
+    name: "The Churn Dragon",
+    threat: "Boss-tier",
+    location: "Fulfillment Fortress",
+    notes: "A winged beast boss. Drops the Buy Button Blade.",
   },
 ];
 
@@ -508,9 +603,9 @@ const bosses: { name: string; tag: string; desc: string }[] = [
 
 const npcs: { name: string; tag: string; desc: string }[] = [
   {
-    name: "Shoppy · River · Lord Shoppington",
-    tag: "Playable Trio",
-    desc: "Your starting heroes — already in the party.",
+    name: "Shoppy · River · Lord Shoppington · Sidekick",
+    tag: "Playable Heroes",
+    desc: "The four starting heroes — pick one at character select (Sidekick is the newest, with the Longbow).",
   },
   {
     name: "Tobi the Founder",
@@ -523,9 +618,9 @@ const npcs: { name: string; tag: string; desc: string }[] = [
     desc: "Endless entrepreneurship quests and motivational shouts. Recruits every rebel he meets.",
   },
   {
-    name: "The MSM",
-    tag: "Healer Class",
-    desc: "Merchant Success Manager. Boosts your Health Score and NRR and writes your Success Plan.",
+    name: "The CSM",
+    tag: "Healer · Gives Merchant Fire",
+    desc: "Customer Success Manager. Restores your Health Score to full and hands out Merchant Fire for cooking.",
   },
   {
     name: "The Partner",
@@ -533,9 +628,29 @@ const npcs: { name: string; tag: string; desc: string }[] = [
     desc: "Agency crafter — forges custom gear (apps & themes) in exchange for GMV.",
   },
   {
-    name: "Sidekick",
-    tag: "Companion Pet",
-    desc: "Your AI familiar. Hints, auto-loot, and the occasional surprisingly good idea.",
+    name: "The RevOps Oracle",
+    tag: "Wizard · Lore",
+    desc: "Warns: \"The sacred mart says: use governed data, brave ranger. The raw-table swamp is cursed.\" Guards the cursed swamp.",
+  },
+  {
+    name: "Claude",
+    tag: "NYC Mascot",
+    desc: "An orange-asterisk AI mascot roaming New York City with relentlessly agreeable dialogue. Talking to him spawns an Openclaw.",
+  },
+  {
+    name: "Scout",
+    tag: "Dog Companion",
+    desc: "A brown dog with a green bandana. Earned via the 'Scout's Love' quest (25 kills); permanently follows you and fights.",
+  },
+  {
+    name: "NYC Citizens",
+    tag: "Ambient",
+    desc: "Dozens of roaming citizens fill New York City with big-city chatter.",
+  },
+  {
+    name: "Sidekick Familiar",
+    tag: "Summoned Pet",
+    desc: "Summoned by the Sidekick Lamp for 30 seconds — an AI familiar that fights beside you.",
   },
 ];
 
@@ -656,8 +771,15 @@ const locations: { name: string; note: string }[] = [
   { name: "Plus Palace", note: "Enterprise district with the realm's best vendors." },
   { name: "The Empire's Fulfillment Fortress", note: "Endgame raid — the Everything Store itself." },
   { name: "BFCM Battlefield", note: "Seasonal world-boss raid zone." },
-  { name: "Digital-by-Design Waypoints", note: "Remote-first fast travel — teleport anywhere, anytime." },
+  { name: "Digital-by-Design Waypoints", note: "Remote-first fast travel — the Spin-Up Portal Stone teleports you home." },
+  { name: "Toronto (in-game)", note: "Snowy region with the CN Tower and the Shopify Supply Store (exclusive merch)." },
+  { name: "New York City (in-game)", note: "Dense skyscraper block grid with street lamps, roaming Citizens, and Claude." },
+  { name: "The Cursed Swamp", note: "Greenish-blue water south of town. Fishing it yields Bad Data — do not cook it." },
 ];
+// Regions actually in the shipped 96×76 world:
+// 151 O'Connor Keep (town) · The Data Warehouse (mining) · Toronto (snow) ·
+// BFCM Battlefield (desert) · New York City (city) · Fulfillment Fortress (bosses) ·
+// Liquid Falls (fishing) · The Monolith (undead).
 
 const quests: { name: string; note: string }[] = [
   { name: "The First Sale", note: "Tutorial — ring up your first order to leave Onboarding Island." },
@@ -667,6 +789,9 @@ const quests: { name: string; note: string }[] = [
   { name: "Survive BFCM", note: "Endure the weekend-long traffic raid." },
   { name: "The Great Deprecation", note: "Migrate the realm off REST and clear the Skeletons." },
   { name: "Charge the Trust Battery", note: "Earn an NPC's trust to unlock Plus-tier gear." },
+  { name: "Scout's Love (in-game)", note: "Defeat 25 enemies to earn Scout, a dog companion who fights beside you." },
+  { name: "Squash 25 Bugs (in-game)", note: "Tobi's quest — squash 25 Bugs to earn the Founder's Rust Blade." },
+  { name: "Into the Data Warehouse (in-game)", note: "Mine your first GMV Ore." },
 ];
 
 // ---------------------------------------------------------------------------
@@ -708,6 +833,13 @@ function Overview() {
   ];
   return (
     <Stack gap={16}>
+      <Callout tone="success" title="Now a playable game (v1)">
+        Shipped &amp; playable: <Text as="span" weight="semibold">4 heroes</Text> (River, Shoppy, Lord Shoppington, Sidekick), a
+        4×-larger <Text as="span" weight="semibold">8-region world</Text> (incl. snowy Toronto with the CN Tower &amp; Shopify Supply Store,
+        and skyscraper-filled New York City), click-to-walk pathfinding, ranged &amp; AoE weapons, fishing / cooking / mining /
+        tree-chopping, campfires, day–night lighting &amp; particles, worn-armor visuals, a title screen, quests, shops, The Vault
+        (bank), Hack Days HQ crafting, MMO-style chat, and the SDP Data Restriction curse.
+      </Callout>
       <Callout tone="info" title="The core reskin">
         Shopify Scape is RuneScape with a commerce soul. The mission — <Text as="span" weight="semibold">arm the rebels</Text> — is
         the merchant's fight against the Empire's Everything Store. The whole stat sheet is a Shopify metaphor:
@@ -1081,8 +1213,8 @@ export default function ShopifyScapeDesignBible() {
       <Stack gap={4}>
         <H1>Shopify Scape — Design Bible</H1>
         <Text tone="secondary">
-          A RuneScape clone set in the Shopify world. Idea catalog for items, weapons, armor, enemies, skills, and lore —
-          built to sit next to your heroes Shoppy, River, and Lord Shoppington.
+          A RuneScape clone set in the Shopify world — now a playable HTML5 game. This is the living design catalog for
+          items, weapons, armor, enemies, skills, and lore behind the four heroes: Shoppy, River, Lord Shoppington, and Sidekick.
         </Text>
       </Stack>
 

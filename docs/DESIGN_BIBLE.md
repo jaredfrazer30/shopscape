@@ -1,8 +1,12 @@
 # Shopify Scape — Design Bible
 
-A RuneScape clone set in the Shopify world. The mission — **arm the rebels** — is the merchant's fight against the Empire's Everything Store. This document is the canonical content catalog for items, weapons, armor, enemies, skills, bosses, and lore.
+A RuneScape clone set in the Shopify world — **now a playable HTML5 game**. The mission — *arm the rebels* — is the merchant's fight against the Empire's Everything Store. This document is the canonical content catalog; entries are marked **(in game)** when shipped or **(planned)** when they're still design/lore.
 
-Rarity/tier ladder mirrors the plan ladder: **Trial → Basic → Shopify → Advanced → Plus**.
+Tier ladder mirrors the plan ladder: **Trial → Basic → Shopify → Advanced → Plus**.
+
+## What's shipped (v1)
+
+Playable single-file HTML5 canvas game (also in `src/` split): 4 heroes, a 96×76 world of 8 regions, click-to-walk A\* pathfinding, wandering/aggro enemies, ranged & AoE weapons, fishing/cooking/mining/tree-chopping, campfires, day–night lighting + particles, worn-armor visuals, title screen + character select, quests, shops, the bank ("The Vault"), Hack Days HQ crafting, an MMO-style chat, a dog companion (Scout), and the SDP Data Restriction curse.
 
 ## Core reskin (systems → lore)
 
@@ -14,160 +18,123 @@ Rarity/tier ladder mirrors the plan ladder: **Trial → Basic → Shopify → Ad
 | Death | Churn |
 | Reputation | Trust Battery |
 | Stamina / rate cap | Leaky Bucket (API rate limit) |
-| Fast travel | Digital by Design (remote-first) |
+| Fast travel | Digital by Design (Spin-Up Portal Stone) |
 | Enemy faction | The Empire (the Everything Store) |
 | Your faction | The Rebels (merchants & entrepreneurs) |
 
-## Playable characters
+## Playable heroes (in game)
 
-Each hero comes with two exclusive starting items — a signature weapon and a signature shield.
+Pick one at character select; each has a signature weapon + shield and a unique attack animation.
 
-- **River** — Long blue hair; an internal-Shopify-tool, agent-mage vibe. Calm, precise, always three queries ahead.
-  - *Water Staff*: ranged magic that soaks and slows a whole group before they reach you.
-  - *Blast Shield*: absorbs one big burst hit and vents the overflow as splash damage.
-- **Shoppy** — The green shopping-bag mascot with arms and legs. Eager, bouncy, the friendly face of every first sale.
-  - *White Gloves*: fast, flurrying "white-glove service" jabs that stun and disarm.
-  - *Money Shield*: a wall of GMV coins; blocked hits convert into gold.
-- **Lord Shoppington** — A fancy shopping bag with a monocle and top hat. Refined, enterprise-grade, quietly loaded.
-  - *Fancy Cane*: elegant melee with immense reach; parries on the backswing.
-  - *Trillion Dollar Shield*: the realm's ultimate bulwark, plated in a trillion in cumulative GMV.
+- **River** — Our resident all-knowing Shopify expert; long blue hair. **Water Staff** (ranged — hurls blue water orbs) + **Blast Shield**.
+- **Shoppy** — The tried-and-true green shopping-bag mascot, a true OG. **White Gloves** (fast melee) + **Money Shield**.
+- **Lord Shoppington** — A fancy bag in monocle & top hat; a trillion reasons to love him. **Fancy Cane** (reach melee) + **Trillion Dollar Shield**.
+- **Sidekick** — Your cheerful AI familiar (purple eyemask, Robin Hood look) who whispers growth tips and gently asks if you've considered improving your Conversion Rate. **Longbow** (ranged arrows) + **SnowDevil Shield**.
 
 ## Weapons
 
-| Name | Type | Tier | Effect / lore |
+**In game:** Water Staff (ranged), White Gloves, Fancy Cane, Longbow (ranged), Buy Button Blade (Churn Dragon drop), Snowdevil Snowboard, Buy Button Bludgeon, Barcode Blaster, Discount Dagger (recoil), GraphQL Query Lance, Webhook Whip, Checkout Cleaver, The Monolith, Shop Pay Saber (+crit), Founder's Rust Blade (Tobi / Squash 25 Bugs), **Slop Grenade** (ranged AoE), **Molotov Sloptail** (ranged AoE).
+
+Weapons carry real stats: Attack, Speed, optional crit/recoil, and **strong/weak vs enemy class** (physical / undead / ghost / beast).
+
+**Planned/lore:** Rusty REST Sword, Liquid Staff, Leaky Bucket, POS Go Wand, Chrome Gauntlet.
+
+## Armor (in game)
+
+Equip slots: **weapon, shield, head, body, legs, hands, ring**. Worn gear now visually appears on the character (pauldrons/belt, greaves, cap, glove).
+
+| Name | Slot | Tier | Notes |
 |---|---|---|---|
-| Snowdevil Snowboard | Melee · 2H | Trial | The origin blade — Shopify began as Snowdevil, a snowboard shop. |
-| Rusty REST Sword | Melee | Trial | Deprecated. Occasionally throws a "sunset warning" and does nothing that turn. |
-| Buy Button Bludgeon | Melee | Basic | One-click smash. Simple and reliable; clears trash mobs fast. |
-| Barcode Blaster | Ranged | Basic | POS scanner rifle. *beep* = hit. Jams on unrecognized SKUs. |
-| Discount Dagger | Melee | Shopify | Applies "Markdown" bleed — but erodes your own margin (self-damage). |
-| Liquid Staff | Magic | Shopify | Channels Liquid to cast templated spells. Scales with Magic level. |
-| GraphQL Query Lance | Ranged | Advanced | Asks for exactly the fields it needs — precise, high single-target damage. |
-| Webhook Whip | Melee / Ranged | Advanced | Fires on every event. Great crowd control; occasionally double-fires. |
-| Leaky Bucket | Ranged · Thrown | Advanced | Rate-limited: exceed N throws and you get 429'd (self-stun). |
-| Shop Pay Saber | Melee | Plus | Highest-converting blade. +crit, +attack speed. One tap, instant kill. |
-| Checkout Cleaver | Melee · 2H | Plus | The sacred conversion blade. Extensible — slot in mods at the forge. |
-| POS Go Wand | Ranged | Plus | Handheld all-in-one. Taps to pay, zaps to slay. |
-| The Monolith | Melee · 2H | Plus | A colossal greatsword forged from Shopify Core. Devastating, slow. |
-| Founder's Rust Blade | Melee | Plus | Tobi's blade, forged in Rust. Blazing fast, memory-safe. Drops in Snowdevil Cave. |
+| Dawn Robes | Body | Trial | Starter theme. |
+| Liquid Leather | Body | Shopify | Templatable armour. |
+| Polaris Plate | Body | Plus | Design-system platebody. |
+| Trust Battery Chestplate | Body | Plus | Regenerates Health Score over time. |
+| Emperor's Power-Armor | Body | Plus | Best in slot; prised from the Emperor. |
+| Fraud Filter Faceguard | Head | Advanced | Anti-Fraudster. |
+| Prime Crown / Merchant of the Year Crown | Head | Plus | +GMV find. |
+| GDPR Gauntlets | Hands | Advanced | Consent-grade. |
+| Oxygen Greaves | Legs | Plus | Headless-set speed. |
+| **Touch Grass Hat** | Head | Shopify | Supply Store (Toronto) exclusive. |
+| **Rebellion Jersey** | Body | Advanced | Supply Store exclusive (white + black stripe). |
+| **GymShark Hoodie** | Body | Advanced | Supply Store exclusive (grey). |
+| **Alo Yoga Pants** | Legs | Advanced | Supply Store exclusive (green). |
+| **Mejuri Ring** | Ring | Plus | Supply Store exclusive; +GMV find. |
 
-## Armor & sets
+## Items (in game)
 
-| Name | Slot | Tier | Effect / lore |
-|---|---|---|---|
-| Dawn Robes | Body | Trial | The default starter theme. Clean, minimal — everyone begins here. |
-| Two-Factor Shield | Offhand | Basic | Blocks the first hit every fight. Requires a one-turn code to equip. |
-| SSL Padlock Aegis | Offhand | Shopify | The little green lock. Reflects "insecure connection" attacks. |
-| Liquid Leather | Body | Shopify | Flexible, templatable armor — recolors to match any theme. |
-| Fraud Filter Faceguard | Head | Advanced | Auto-flags incoming Fraudster hits before they land. |
-| GDPR Gauntlets | Hands | Advanced | Forces enemies to request consent before looting you. |
-| Hydrogen Helm + Oxygen Greaves | Head / Legs | Plus | Headless set bonus: detach your frontend for a big speed boost. |
-| Polaris Plate | Body | Plus | Design-system platebody. Grants +Navigation; you never get lost. |
-| Trust Battery Chestplate | Body | Plus | Regenerates armor over time while you act in good faith. |
-| Uptime Aegis (99.99%) | Offhand | Plus | Almost never fails — 52 minutes of downtime per year. |
-| Merchant of the Year Crown | Head | Plus | +GMV find, boosted drop rate, and every NPC bows. |
-
-## Items, currencies & consumables
-
-| Name | Type | Effect |
-|---|---|---|
-| GMV Gold | Currency | The realm's coin. Everything is priced in it. |
-| Shop Cash | Premium currency | Earned at checkout, spent anywhere. |
-| Gift Card | Tradeable note | Bearer currency — never expires. |
-| Health Score Potion | Heal | Instantly restores HP. Your Health Score IS your HP bar. |
-| NRR Elixir | Regen | Heals over time; can push max HP past 100% (net expansion). |
-| Capital Chest | Risky buff | A Capital loan. Big power spike now; repay from future GMV. |
-| Discount Code Scroll | Buff | Summons a horde of customers — but shrinks your margin. |
-| Launchpad Rocket | Timed buff | Schedule a flash sale: a massive buff window that auto-reverts. |
-| Editions Booklet | Ability unlock | Drops every Summer & Winter — unlocks 100+ abilities. |
-| Metafield Pouch | Storage | Custom bag slots — store anything you can define. |
-| Bulk Editor Gloves | Utility | Apply one change to a thousand items at once. |
-| Tophat | Utility | Preview any change safely before it ships. |
-| Spin-Up Portal Stone | Teleport | Fresh dev environment / instant fast-travel. |
-| Analytics Spyglass | Recon | Reveals enemy stats, funnel drop-off, and hidden loot. |
-| Sidekick Lamp | Companion | Summons your AI familiar to fight and auto-loot beside you. |
+- **Currencies:** GMV Gold, Shop Cash, Gift Card.
+- **Consumables:** Health Score Potion, NRR Elixir (overheals), **Ham** (heal drop), Cooked Fish.
+- **Fishing/cooking:** Fishing Rod (from Harley), Raw Fish, Merchant Fire (from the CSM), campfires.
+- **Resources:** Raw Goods, Product Logs, GMV Ore.
+- **Rare drops:** Summit Swag (~1/20, 100 GMV), Ham (~1/25), Scope Change (~1/100, 250 GMV).
+- **Cursed:** Bad Data (from the swamp — cooking/eating it triggers the curse).
+- **Utility/buffs:** Capital Chest, Discount Code Scroll, Launchpad Rocket, Analytics Spyglass (reveal), Spin-Up Portal Stone (teleport home), Sidekick Lamp (summons a 30s familiar), Editions Booklet.
 
 ## Bestiary
 
-| Enemy | Threat | Habitat | Notes |
+| Enemy | Threat | Region | Notes |
 |---|---|---|---|
-| Abandoned Cart | Low | Checkout Cathedral | Wanders full of loot. Recover it to claim the goods. |
-| Cart Goblin | Low | Everywhere | Snatches items mid-purchase and bolts. |
-| Latency Slime | Low | The Monolith | Slows your attack speed. Brutal in a swarm. |
-| 404 Phantom | Low | Off the map | A page that isn't there. Strikes once, then vanishes. |
-| Refund Zombie | Medium | Merch Table | Rises to reclaim a sale — reverses your last GMV gain. |
-| Fraudster | Medium | App Store Bazaar | Disguised as a customer; Fraud Filter reveals it. |
-| Deprecated API Skeleton | Medium | The Data Warehouse | Old REST endpoints. Immune to modern gear — needs a migration. |
-| Sneaker Bot Swarm | High | BFCM Battlefield | Overwhelming numbers during drops. Bot Protection AoE clears them. |
-| 429 Rate-Limit Golem | High | The Monolith | Stuns you if you attack too fast. Respect the leaky bucket. |
-| Chargeback Wraith | High | Checkout Cathedral | Undoes a won fight and drains gold days later. |
-| Merge Conflict Beast | High | Partner's Guild | Two heads that refuse to agree. Resolve line by line. |
-| Legacy Code Lich | Boss | Monolith depths | Ancient, powerful, load-bearing. Nobody remembers who summoned it. |
+| Abandoned Cart | Low | everywhere | Physical. |
+| Cart Goblin | Low | BFCM / city | Physical. |
+| Bug | Low | 151 O'Connor Keep | Fast respawn; squash 25 for Tobi. |
+| Latency Slime | Low | Data Warehouse / snow | Beast. |
+| Refund Zombie | Medium | BFCM / city | Undead. |
+| Fraudster | Medium | city / fortress | Ghost. |
+| Deprecated API Skeleton | Medium | Data Warehouse / Monolith | Undead. |
+| Chargeback Wraith | High | Data Warehouse / snow | Ghost. |
+| Openclaw | Medium | New York City | Lobster; spawns when you talk to Claude. |
+| The Churn Dragon | Boss | Fulfillment Fortress | Beast; drops the Buy Button Blade. |
+| Legacy Code Lich | Boss | The Monolith | Undead; drops The Monolith greatsword. |
+| Jeff Bezos, Emperor of the Everything Store | Boss | Fulfillment Fortress | Endgame; enrage + self-heal phases; drops Emperor's Power-Armor. |
 
-## Bosses
+**Planned/lore:** 404 Phantom, Sneaker Bot Swarm, 429 Rate-Limit Golem, Merge Conflict Beast, The Zos, The BFCM Titan, The QBR Dragon, Sev1 Behemoth.
 
-- **Jeff Bezos, Emperor of the Everything Store** — Supreme final boss. Floats above the Fulfillment Fortress in chrome power-armor, summoning Prime drones and one-click armies. Weak only to fiercely loyal customers and brands he can't undercut.
-- **The Zos, Warden of the Everything Store** — Bezos's steel enforcer; guards the door to the Emperor.
-- **The BFCM Titan** — Traffic-surge incarnate. A once-a-year world-boss raid for record loot.
-- **The QBR Dragon** — Demands your numbers. Breathes spreadsheets; beaten with a clean pipeline and honest forecast.
-- **The Churn Reaper** — Roams merchant villages lowering Health Scores. Beaten with NRR Elixirs, Success Plans, and an attentive MSM.
-- **Sev1 Behemoth** — Spawns unannounced and pages the on-call raid. Down it before the pager stops screaming.
+## NPCs (in game)
 
-### Featured fight — the Emperor (4 phases)
-
-| Phase | HP | Signature attacks | Key mechanic |
-|---|---|---|---|
-| 1 · The Everything Store | 100–70% | One-Click Barrage · Prime Drone Swarm · Buy Box Slam | Seizes the Buy Box — reclaim it in 10s or your damage is halved. |
-| 2 · Blue Origin Ascent | 70–40% | Rocket Launch · Re-Entry Meteor · Fulfillment Titan adds | Duck behind a Shield during the re-entry telegraph or eat massive AoE. |
-| 3 · Undercut Meltdown | 40–10% | Undercut Nova · Marketplace Mirror · Chargeback Volley | A price-war aura drains your GMV every tick — burn him down fast. |
-| 4 · The Long Game | 10–0% | Hostile Acquisition (execute) · Infinite Runway (heal) | A full Trust Battery blocks the instant-kill. Empty battery = game over. |
-
-**Loot:** Mountain of GMV & Prime Crown (guaranteed), Rocket Boots & Chrome Gauntlet (rare), The Everything Ledger & Monocle of Market Domination (epic), Emperor's Power-Armor (legendary).
-
-## Allies & NPCs
-
-- **Shoppy · River · Lord Shoppington** — the playable trio.
-- **Tobi the Founder** — hidden quest giver in the Snowdevil Cave; rewards the Founder's Rust Blade.
-- **Harley the Hype** — endless entrepreneurship quests and motivational shouts.
-- **The MSM** (Merchant Success Manager) — healer class; boosts Health Score & NRR, writes your Success Plan.
-- **The Partner** — agency smith; forges custom gear (apps & themes) for GMV.
-- **Sidekick** — your AI familiar companion pet.
+- **Harley the Hype** — hypeman; gives you the **Fishing Rod**.
+- **Banker** — guards The Vault.
+- **The CSM** — heals your Health Score to full and hands out **Merchant Fire**.
+- **The Partner** — agency smith (crafting flavor).
+- **Tobi the Founder** — gives the **Squash 25 Bugs** quest; rewards the Founder's Rust Blade.
+- **The RevOps Oracle** — warns about the cursed swamp ("use governed data, brave ranger").
+- **Claude** — orange-asterisk AI mascot in NYC; sycophantic dialogue; talking to him spawns an Openclaw.
+- **Scout** — brown dog with a green bandana; earned from *Scout's Love*, permanently follows and fights.
+- **NYC Citizens** — ambient roaming crowd.
 
 ## Skills
 
-| RuneScape skill | Shopify skill | What you do |
-|---|---|---|
-| Attack / Strength / Defence | Checkout Combat | Close the conversion in melee fights. |
-| Magic | Liquid | Cast templated spells that scale with level. |
-| Ranged | API (GraphQL / REST) | Attack at range with precise queries. |
-| Prayer | Trust Battery | Buffs that charge with good faith. |
-| Mining | Data Mining | Mine GMV ore and metrics in the Data Warehouse. |
-| Smithing | App Building | Forge apps from the data you mined. |
-| Fishing | Lead Gen | Catch leads and MSQLs from the stream. |
-| Cooking | Fulfillment | Turn raw orders into shipped, happy customers. |
-| Crafting | Theme Building | Craft storefronts customers love. |
-| Runecrafting | Liquid Crafting | Craft the runes (Liquid) that power Magic. |
-| Herblore | Merchandising | Mix discounts, bundles, and potions. |
-| Agility | CRO | Parkour the conversion funnel without dropping off. |
-| Thieving | Growth / SEO | Nab organic traffic from rival kingdoms. |
-| Slayer | Fraud Slayer | Complete assigned fraud-fighting tasks. |
-| Farming | Retention | Grow your merchant base — farm NRR. |
-| Construction | Store Setup | Build and upgrade your shop and HQ. |
-| Hunter | Prospecting | Hunt MSQLs in the wild. |
-| Summoning | Integrations | Summon app familiars to fight beside you. |
-| Fletching | Marketing | Craft campaigns — fletch your ad arrows. |
-| Firemaking | Launches / Hype | Light up product drops. |
+The full RuneScape→Shopify skill map is catalogued (Checkout Combat, Liquid, API, Trust Battery, Data Mining, App Building, Lead Gen, Fulfillment, Theme Building, Liquid Crafting, Merchandising, CRO, Growth/SEO, Fraud Slayer, Retention, Store Setup, Prospecting, Integrations, Marketing, Launches/Hype).
 
-## World & locations
+**Trainable now:** **Checkout Combat** (fighting), **Sourcing** (crates & trees), **Data Mining** (rocks), **Fishing** (water).
 
-Onboarding Island · 151 O'Connor Keep (Ottawa) · Snowdevil Cave · Checkout Cathedral · Liquid Falls · The Data Warehouse (BigQuery mines) · App Store Bazaar & Theme Store Village · The Monolith (Shopify Core) · Plus Palace · The Empire's Fulfillment Fortress · BFCM Battlefield · Digital-by-Design fast-travel waypoints.
+## World & regions (in game)
 
-## Quests
+96×76 world, 8 regions linked by a bridged road grid:
 
-- **The First Sale** — ring up your first order to leave Onboarding Island.
-- **Arm the Rebels** — the main questline: unite merchants against the Empire.
-- **The Founder's Keyboard** — find Tobi, build a mechanical keyboard, earn the Rust Blade.
-- **Slay the Churn Reaper** — restore a merchant village's Health Scores.
-- **Survive BFCM** — endure the weekend-long traffic raid.
-- **The Great Deprecation** — migrate the realm off REST and clear the Skeletons.
-- **Charge the Trust Battery** — earn an NPC's trust to unlock Plus-tier gear.
+- **151 O'Connor Keep** — grassy town, buildings (Vault, Shop, Hack Days HQ), cursed swamp + fishing pond, Bugs.
+- **The Data Warehouse** — rocky mining grounds (slimes, skeletons, wraiths).
+- **Toronto** — snow/ice; the **CN Tower** + **Shopify Supply Store** (exclusive gear).
+- **BFCM Battlefield** — desert (carts, goblins).
+- **New York City** — pavement + skyscraper block grid, street lamps, Citizens, Claude.
+- **Fulfillment Fortress** — bosses: the Churn Dragon and the Emperor.
+- **Liquid Falls** — water-heavy fishing region.
+- **The Monolith** — dark undead dungeon; the Legacy Code Lich.
+
+## Quests (in game)
+
+- **The First Sale** — defeat your first enemy.
+- **Clear the Path** — fell a Product Tree.
+- **Into the Data Warehouse** — mine GMV Ore.
+- **Scout's Love** — defeat 25 enemies to earn Scout the dog companion.
+- **Squash 25 Bugs** — Tobi's quest; earns the Founder's Rust Blade.
+- **Slay the Churn Reaper** — defeat the Churn Dragon.
+- **The Great Deprecation** — destroy the Legacy Code Lich.
+- **Arm the Rebels** — defeat Jeff Bezos, Emperor of the Everything Store.
+
+## Mechanics (in game)
+
+Ranged weapons + AoE explosives · fishing → cooking on campfires · mining · tree-chopping · GMV-find drops · day–night cycle with light sources · particle FX (embers, dust, combat bursts, fireflies) · screen shake · worn-armor visuals · minimap + orbs + OSRS-style tabbed UI · autosave · MMO-style public chat (speech bubbles) · the **SDP Data Restriction Curse** (5-minute visibility loss from Bad Data).
+
+## The Emperor fight (featured, partially in game)
+
+The endgame Bezos boss is implemented with enrage + self-heal phases. The full 4-phase design (Buy Box seizure → Blue Origin re-entry AoE → Undercut price-war aura → Hostile Acquisition execute) and the complete loot table (Mountain of GMV, Prime Crown, Rocket Boots, Chrome Gauntlet, The Everything Ledger, Monocle of Market Domination, Emperor's Power-Armor) remain on the roadmap.
