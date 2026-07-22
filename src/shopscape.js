@@ -47,6 +47,8 @@ function placeDeco(x,y,w,h,kind){ // decorative (non-enterable) structure that b
   for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)if(inb(i,j))blockObj[j][i]=1;
   objects.push({type:kind,tx:x,ty:y,w,h});
 }
+const BUILDINGS=new Set(["bank","store","hackhq","sky","cabin","tower"]);
+function nearBuilding(tx,ty,m){for(const o of objects){if(o.w&&BUILDINGS.has(o.type)&&tx>=o.tx-m&&tx<o.tx+o.w+m&&ty>=o.ty-m&&ty<o.ty+o.h+m)return true;}return false;}
 function genWorld(){
   map=[];blockObj=[];objects=[];
   const gn=makeNoise(7),wn=makeNoise(53);
@@ -85,9 +87,10 @@ function genWorld(){
   const put=(type,tx,ty,block)=>{if(!inb(tx,ty))return;const t=map[ty][tx];
     if(t===T.WATER||t===T.SWAMP||t===T.DIRT||t===T.BRIDGE||blockObj[ty][tx])return;
     if(block)blockObj[ty][tx]=1;objects.push({type,tx,ty});};
-  const scatterRegion=(nm,type,seed,thresh,block,onlyGrass)=>{const rg=regionByName(nm);const n=makeNoise(seed);
+  const scatterRegion=(nm,type,seed,thresh,block,onlyGrass,margin)=>{const rg=regionByName(nm);const n=makeNoise(seed);const mg=margin||1;
     for(let y=rg.y+1;y<rg.y+rg.h-1;y++)for(let x=rg.x+1;x<rg.x+rg.w-1;x++){
       if(onlyGrass&&map[y][x]!==T.GRASS&&map[y][x]!==T.GRASS2)continue;
+      if(nearBuilding(x,y,mg))continue; // keep scenery in open areas, away from buildings
       if(n(x/2.3,y/2.3)>thresh)put(type,x,y,block);}};
   scatterRegion("151 O'Connor Keep","tree",21,0.68,true);
   scatterRegion("151 O'Connor Keep","bush",22,0.86,false);
@@ -100,7 +103,10 @@ function genWorld(){
   scatterRegion("Liquid Falls","tree",47,0.72,true,true);
   scatterRegion("The Monolith","rock",48,0.62,true);
   scatterRegion("The Monolith","deadtree",49,0.86,true);
-  scatterRegion("New York City","lamp",50,0.9,true);
+  // NYC street scenery — natural clusters in open areas, well clear of the skyscrapers
+  scatterRegion("New York City","tree",50,0.80,true,false,2);
+  scatterRegion("New York City","bush",51,0.90,false,false,2);
+  scatterRegion("New York City","lamp",52,0.93,true,false,1);
   // Toronto snowmen + town lamps/sign
   put("snowman",74,10,true);put("snowman",84,13,true);put("snowman",90,9,true);
   put("lamp",7,7,true);put("lamp",13,7,true);put("sign",8,14,false);
@@ -314,16 +320,17 @@ const MT={
 };
 function fix(list){return list.map(o=>{const a=nearestWalkable(o.tx,o.ty)||{x:o.tx,y:o.ty};return{...o,tx:a.x,ty:a.y};});}
 let crates=fix([[16,6],[19,9],[22,12],[17,14],[20,4],[23,7],[38,30],[45,46],[56,44],[41,33],[8,60],[14,66]].map(c=>({tx:c[0],ty:c[1],cd:0})));
-function scatterMobs(nm,types,seed,thresh,max){const rg=regionByName(nm);const n=makeNoise(seed);const out=[];let c=0;
+function scatterMobs(nm,types,seed,thresh,max,avoidBld){const rg=regionByName(nm);const n=makeNoise(seed);const out=[];let c=0;
   for(let y=rg.y+2;y<rg.y+rg.h-2&&c<max;y++)for(let x=rg.x+2;x<rg.x+rg.w-2&&c<max;x++){
-    if(!walkable(x,y))continue;if(n(x/3,y/3)>thresh){out.push({type:types[(rngGlobal()*types.length)|0],tx:x,ty:y});c++;}}
+    if(!walkable(x,y))continue;if(avoidBld&&nearBuilding(x,y,3))continue;
+    if(n(x/3,y/3)>thresh){out.push({type:types[(rngGlobal()*types.length)|0],tx:x,ty:y});c++;}}
   return out;}
 let monData=[]
   .concat(scatterMobs("151 O'Connor Keep",["bug","bug","cart"],101,0.80,12))
   .concat(scatterMobs("The Data Warehouse",["slime","skeleton","wraith"],102,0.82,9))
   .concat(scatterMobs("Toronto",["wraith","slime"],103,0.82,8))
   .concat(scatterMobs("BFCM Battlefield",["cart","cartGoblin","goblin"],104,0.80,9))
-  .concat(scatterMobs("New York City",["cartGoblin","goblin","phantom"],105,0.83,7))
+  .concat(scatterMobs("New York City",["cartGoblin","goblin"],105,0.90,3,true))
   .concat(scatterMobs("Fulfillment Fortress",["phantom","goblin"],106,0.83,6))
   .concat(scatterMobs("Liquid Falls",["cart","goblin"],107,0.85,5))
   .concat(scatterMobs("The Monolith",["skeleton","skeleton","wraith"],108,0.80,9));
@@ -440,7 +447,7 @@ function spawnPart(x,y,vx,vy,life,color,size,grav){if(parts.length>240)return;pa
 function burst(x,y,color,n){for(let i=0;i<n;i++){const a=Math.random()*7,s=20+Math.random()*50;spawnPart(x,y,Math.cos(a)*s,Math.sin(a)*s-15,260+Math.random()*220,color,1.4+Math.random()*1.6,90);}}
 function updateParticles(dt){
   for(const o of objects)if(o.type==="campfire"&&Math.random()<0.5)spawnPart(o.tx*TILE+TILE/2+(Math.random()-0.5)*8,o.ty*TILE+TILE-6,(Math.random()-0.5)*6,-22-Math.random()*22,700+Math.random()*400,Math.random()<0.5?"#ffb020":"#ff6a1a",1+Math.random()*1.4,-6);
-  if(nightFactor()>0.35&&Math.random()<0.35){const px=state.player.px+(Math.random()-0.5)*440,py=state.player.py+(Math.random()-0.5)*320;spawnPart(px,py,(Math.random()-0.5)*10,(Math.random()-0.5)*10,1600,"#d6e88a",1.4,0);}
+  if(nightFactor()>0.55&&Math.random()<0.08){const px=state.player.px+(Math.random()-0.5)*460,py=state.player.py+(Math.random()-0.5)*330;spawnPart(px,py,(Math.random()-0.5)*6,(Math.random()-0.5)*6,1200,"#aec27a",1.0,0);}
   for(const pt of parts){pt.life-=dt;pt.x+=pt.vx*dt/1000;pt.y+=pt.vy*dt/1000;if(pt.grav)pt.vy+=pt.grav*dt/1000;}
   parts=parts.filter(p=>p.life>0);}
 function drawParticles(){for(const pt of parts){const sx=SX(pt.x),sy=SY(pt.y);if(sx<-16||sx>VW+16||sy<-16||sy>VH+16)continue;
