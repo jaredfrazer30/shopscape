@@ -387,6 +387,30 @@ function buildCampfire(){const p=state.player;const pt=pxTile(p.px,p.py);let tx=
   if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y+1;}
   if(!inb(tx,ty)||map[ty][tx]===T.WATER||map[ty][tx]===T.SWAMP){tx=pt.x;ty=pt.y;}
   objects.push({type:"campfire",tx,ty,burnUntil:Date.now()+120000});}
+// ---- Tier-1 atmosphere: particles, day/night, lighting, shake ----
+let worldClock=0,parts=[],shake=0;
+const ZONE_TINT={"151 O'Connor Keep":"rgba(255,228,150,0.05)","The Data Warehouse":"rgba(120,160,255,0.06)","BFCM Battlefield":"rgba(255,150,70,0.06)","Fulfillment Fortress":"rgba(200,70,70,0.07)"};
+function nightFactor(){return (1-Math.cos(worldClock/240000*Math.PI*2))/2;}
+function spawnPart(x,y,vx,vy,life,color,size,grav){if(parts.length>240)return;parts.push({x,y,vx,vy,life,maxLife:life,color,size,grav:grav||0});}
+function burst(x,y,color,n){for(let i=0;i<n;i++){const a=Math.random()*7,s=20+Math.random()*50;spawnPart(x,y,Math.cos(a)*s,Math.sin(a)*s-15,260+Math.random()*220,color,1.4+Math.random()*1.6,90);}}
+function updateParticles(dt){
+  for(const o of objects)if(o.type==="campfire"&&Math.random()<0.5)spawnPart(o.tx*TILE+TILE/2+(Math.random()-0.5)*8,o.ty*TILE+TILE-6,(Math.random()-0.5)*6,-22-Math.random()*22,700+Math.random()*400,Math.random()<0.5?"#ffb020":"#ff6a1a",1+Math.random()*1.4,-6);
+  if(nightFactor()>0.35&&Math.random()<0.35){const px=state.player.px+(Math.random()-0.5)*440,py=state.player.py+(Math.random()-0.5)*320;spawnPart(px,py,(Math.random()-0.5)*10,(Math.random()-0.5)*10,1600,"#d6e88a",1.4,0);}
+  for(const pt of parts){pt.life-=dt;pt.x+=pt.vx*dt/1000;pt.y+=pt.vy*dt/1000;if(pt.grav)pt.vy+=pt.grav*dt/1000;}
+  parts=parts.filter(p=>p.life>0);}
+function drawParticles(){for(const pt of parts){const sx=SX(pt.x),sy=SY(pt.y);if(sx<-16||sx>VW+16||sy<-16||sy>VH+16)continue;
+  ctx.globalAlpha=Math.max(0,Math.min(1,pt.life/pt.maxLife));ctx.fillStyle=pt.color;ctx.beginPath();ctx.arc(sx,sy,pt.size,0,7);ctx.fill();}ctx.globalAlpha=1;}
+function drawAtmosphere(){const tint=ZONE_TINT[curZone()];if(tint){ctx.fillStyle=tint;ctx.fillRect(0,0,VW,VH);}
+  const nf=nightFactor();
+  if(nf>0.02){ctx.fillStyle="rgba(10,14,34,"+(0.5*nf)+")";ctx.fillRect(0,0,VW,VH);
+    ctx.save();ctx.globalCompositeOperation="lighter";
+    const light=(wx,wy,r,col)=>{const sx=SX(wx),sy=SY(wy);if(sx<-r||sx>VW+r||sy<-r||sy>VH+r)return;const g=ctx.createRadialGradient(sx,sy,0,sx,sy,r);g.addColorStop(0,col);g.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,r,0,7);ctx.fill();};
+    for(const o of objects){if(o.type==="campfire")light(o.tx*TILE+TILE/2,o.ty*TILE+TILE-6,95,"rgba(255,150,60,"+(0.55*nf)+")");
+      else if(o.type==="lamp")light(o.tx*TILE+TILE/2,o.ty*TILE-16,72,"rgba(255,210,120,"+(0.5*nf)+")");}
+    light(state.player.px,state.player.py,120,"rgba(200,210,255,"+(0.16*nf)+")");
+    ctx.restore();}
+  const vg=ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.36,VW/2,VH/2,Math.max(VW,VH)*0.72);
+  vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,0.34)");ctx.fillStyle=vg;ctx.fillRect(0,0,VW,VH);}
 function hitsplat(x,y,val,color){hitsplats.push({x,y,val,color,life:34});}
 
 // ============================================================ INPUT (click-to-walk, RS style)
@@ -430,6 +454,7 @@ function movement(dt){const p=state.player;if(!p.path||!p.path.length){p.moving=
   const spd=145*dt/1000;p.moving=true;
   if(d<=spd){p.px=tc.x;p.py=tc.y;p.path.shift();}
   else{p.px+=dx/d*spd;p.py+=dy/d*spd;if(Math.abs(dx)>0.5)p.face=dx<0?-1:1;}
+  if(Math.random()<0.14)spawnPart(p.px+(Math.random()-0.5)*6,p.py+14,(Math.random()-0.5)*8,-6,260,"#b8a06a",1.3,12);
   p.anim+=dt/90;}
 function talk(n){const i=(dialogIdx[n.name]||0)%n.lines.length;log(`<b>${n.name}:</b> ${n.lines[i]}`,"sys");dialogIdx[n.name]=i+1;
   const p=state.player;
@@ -480,7 +505,7 @@ function actionTick(){if(!pending)return;const p=state.player,ref=pending.ref;
     else if(w.weakVs&&w.weakVs.includes(d.class))dmg=Math.max(1,Math.round(dmg*0.6));
     if(w.crit&&Math.random()<w.crit){dmg*=2;crit=true;}
     if(w.selfDmg){p.hp-=w.selfDmg;hitsplat(p.px,p.py-4,w.selfDmg,"#a11");}
-    m.hp-=dmg;m.flash=8;hitsplat(m.px,m.py,dmg,crit?"#ffd166":"#c8342f");
+    m.hp-=dmg;m.flash=8;hitsplat(m.px,m.py,dmg,crit?"#ffd166":"#c8342f");burst(m.px,m.py,crit?"#ffd166":"#c8342f",crit?10:5);if(crit)shake=Math.min(9,shake+5);
     if(p.hp<=0){die();return;}
     if(m.hp<=0){m.dead=true;m.respawnAt=now+(m.type==="bug"?12000:300000);m.aggro=false;pending=null;gainXp("selling",d.xp);
       const find=(ITEM_DEFS[state.player.head]&&ITEM_DEFS[state.player.head].find)||1;state.gmv+=Math.round(d.gmv*find);
@@ -511,6 +536,7 @@ function monsterAI(m,dt){const d=MT[m.type];const p=state.player;
       if(m.atkCd<=0){m.atkCd=d.phases&&m.hp<m.maxHp*0.4?650:1000;m.atkAnim=ATK_FRAMES;
         let raw=d.dmg;if(d.phases&&m.hp<m.maxHp*0.4)raw=Math.round(raw*1.4); // Bezos enrage (Undercut Meltdown)
         const dmg=Math.max(1,raw-Math.floor(equipDef()*Math.random()));p.hp-=dmg;hitsplat(p.px,p.py-4,dmg,"#c8342f");
+        burst(p.px,p.py-4,"#c8342f",5);shake=Math.min(12,shake+(d.boss?9:5));
         if(d.phases&&m.hp<m.maxHp*0.5&&Math.random()<0.06){m.hp=Math.min(m.maxHp,m.hp+6);hitsplat(m.px,m.py,"+6","#4fae5a");} // Infinite Runway heal
         if(!pending)setPending("monster",m);if(p.hp<=0)die();}}
     else{m.aiCd-=dt;if(m.aiCd<=0||!m.path.length){m.aiCd=400;const adj=adjacentTile(pt.x,pt.y,m.tx,m.ty)||{x:pt.x,y:pt.y};m.path=findPath(m.tx,m.ty,adj.x,adj.y)||[];}
@@ -525,6 +551,7 @@ function npcTick(n,dt){if(pending&&pending.kind==="npc"&&pending.ref===n){n.path
     const a=nearestWalkable(n.home.x+((rr(0,5))|0)-2,n.home.y+((rr(0,5))|0)-2);
     if(a)n.path=findPath(n.tx,n.ty,a.x,a.y)||[];}}
 function worldTick(dt){const now=Date.now();
+  worldClock+=dt;updateParticles(dt);if(shake>0)shake=Math.max(0,shake-dt*0.03);
   for(const c of crates)if(c.cd>0)c.cd-=dt;
   for(const o of objects)if(o.felled&&now>=o.respawnAt){const pt=pxTile(state.player.px,state.player.py);
     if(pt.x===o.tx&&pt.y===o.ty){o.respawnAt=now+1500;continue;}o.felled=false;o.hp=2;blockObj[o.ty][o.tx]=1;}
@@ -546,7 +573,8 @@ function worldTick(dt){const now=Date.now();
 // ============================================================ RENDER
 function updateCam(){const p=state.player;cam.x=p.px-VW/2;cam.y=p.py-VH/2;
   cam.x=Math.max(0,Math.min(cam.x,MAP_W*TILE-VW));cam.y=Math.max(0,Math.min(cam.y,MAP_H*TILE-VH));
-  if(MAP_W*TILE<VW)cam.x=(MAP_W*TILE-VW)/2;if(MAP_H*TILE<VH)cam.y=(MAP_H*TILE-VH)/2;}
+  if(MAP_W*TILE<VW)cam.x=(MAP_W*TILE-VW)/2;if(MAP_H*TILE<VH)cam.y=(MAP_H*TILE-VH)/2;
+  if(shake>0.3){cam.x+=(Math.random()-0.5)*shake;cam.y+=(Math.random()-0.5)*shake;}}
 const SX=x=>x-cam.x, SY=y=>y-cam.y;
 function shadow(sx,sy,w){ctx.fillStyle="rgba(0,0,0,0.28)";ctx.beginPath();ctx.ellipse(sx,sy,w,w*0.42,0,0,7);ctx.fill();}
 function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
@@ -888,7 +916,7 @@ function render(){updateCam();ctx.clearRect(0,0,VW,VH);ctx.imageSmoothingEnabled
   for(const m of monsters){if(m.dead)continue;list.push({y:(m.ty+1)*TILE,d:()=>drawMonster(m)});}
   const p=state.player;list.push({y:p.py+15,d:()=>drawPlayer(p)});
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
-  drawCompanion();drawScout();drawPlayerSay();drawFX();drawCurse();drawHUD();drawMinimap();}
+  drawCompanion();drawScout();drawAtmosphere();drawParticles();drawPlayerSay();drawFX();drawCurse();drawHUD();drawMinimap();}
 function drawPlayerSay(){const p=state.player;if(!(p.chatUntil>Date.now()))return;const sx=SX(p.px),sy=SY(p.py)-44;
   ctx.font="bold 12px Trebuchet MS";ctx.textAlign="center";const w=ctx.measureText(p.chatText).width+14;
   ctx.fillStyle="rgba(20,17,11,0.9)";roundRect(sx-w/2,sy-14,w,20,5);ctx.fill();ctx.strokeStyle="#e8c46a";ctx.lineWidth=1;ctx.stroke();
